@@ -1,177 +1,312 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="utf-8" />
-    <title>PictureNames · Лобби</title>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: system-ui, sans-serif;
-            background: #0f0f12; color: #e8e8e8;
-            display: grid; place-items: center;
-            min-height: 100vh; margin: 0;
-        }
-        .card {
-            width: 560px; padding: 2rem;
-            background: #17171c;
-            border-radius: 12px;
-            border: 1px solid #26262e;
-        }
-        h1 { font-weight: 300; margin: 0 0 1.5rem; letter-spacing: 0.05em; }
-        h2 { font-weight: 400; font-size: 14px; color: #8a8a94; margin: 1.5rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.08em; }
-        input, button {
-            font: inherit; padding: 0.6rem 0.8rem;
-            background: #0f0f12; color: #e8e8e8;
-            border: 1px solid #2e2e38; border-radius: 6px;
-        }
-        input { width: 100%; margin-bottom: 0.5rem; }
-        button {
-            cursor: pointer; background: #2a2a36; width: 100%;
-            margin-bottom: 0.5rem;
-        }
-        button:hover { background: #353542; }
-        button.secondary { background: #1c1c22; }
-        .or { text-align: center; color: #6a6a72; font-size: 12px; margin: 0.8rem 0; }
-        .code-display {
-            font-family: monospace; font-size: 24px;
-            letter-spacing: 0.3em;
-            color: #7ab8ff; margin-bottom: 1rem;
-        }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li {
-            padding: 0.5rem 0.8rem;
-            background: #0f0f12; border-radius: 6px;
-            margin-bottom: 0.3rem;
-            display: flex; justify-content: space-between;
-        }
-        .team {
-            padding: 0.6rem 1rem; border-radius: 6px;
-            margin-bottom: 0.3rem; font-family: monospace;
-        }
-        .team.Blue { background: #14243d; color: #7ab8ff; }
-        .team.Red { background: #3d1616; color: #ff9a9a; }
-        .error { color: #ff8a8a; font-size: 14px; min-height: 1.2rem; margin-top: 0.5rem; }
-        .status { font-size: 12px; color: #6a6a72; margin-top: 0.5rem; }
-        .seal { font-family: monospace; font-size: 11px; color: #4a4a52; margin-top: 1.5rem; text-align: center; white-space: pre; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div id="screen-enter">
-            <h1>PictureNames</h1>
-            <input id="nick" placeholder="Твой ник" value="riht" />
-            <button id="btn-create">Создать комнату</button>
-            <div class="or">или</div>
-            <input id="code" placeholder="Код комнаты (4 символа)" maxlength="4" style="text-transform: uppercase;" />
-            <button id="btn-join" class="secondary">Войти по коду</button>
-            <div class="error" id="error"></div>
-        </div>
+	<head>
+		<meta charset="utf-8" />
+		<title>PictureNames · Лобби</title>
+		<style>
+			* { box-sizing: border-box; }
+			body {
+			font-family: system-ui, sans-serif;
+			background: #0f0f12; color: #e8e8e8;
+			display: grid; place-items: center;
+			min-height: 100vh; margin: 0; padding: 2rem;
+			}
+			.card {
+			width: 640px; padding: 2rem;
+			background: #17171c; border-radius: 12px;
+			border: 1px solid #26262e;
+			}
+			h1 { font-weight: 300; margin: 0 0 1rem; letter-spacing: 0.05em; }
+			h2 { font-weight: 400; font-size: 13px; color: #8a8a94;
+			margin: 1.5rem 0 0.5rem; text-transform: uppercase;
+			letter-spacing: 0.08em; }
+			input, button {
+			font: inherit; padding: 0.6rem 0.8rem;
+			background: #0f0f12; color: #e8e8e8;
+			border: 1px solid #2e2e38; border-radius: 6px;
+			}
+			input { width: 100%; margin-bottom: 0.5rem; }
+			button { cursor: pointer; background: #2a2a36; }
+			button:hover:not(:disabled) { background: #353542; }
+			button:disabled { opacity: 0.4; cursor: not-allowed; }
+			.code-display {
+			font-family: monospace; font-size: 18px;
+			letter-spacing: 0.3em; color: #7ab8ff;
+			}
+			.team-block {
+			padding: 1rem; border-radius: 8px;
+			margin-bottom: 0.8rem;
+			}
+			.team-block.Blue { background: #14243d; }
+			.team-block.Red { background: #3d1616; }
+			.team-block h3 {
+			margin: 0 0 0.6rem; font-weight: 400;
+			font-size: 13px; letter-spacing: 0.08em;
+			text-transform: uppercase;
+			}
+			.team-block.Blue h3 { color: #7ab8ff; }
+			.team-block.Red h3 { color: #ff9a9a; }
+			.member {
+			display: flex; justify-content: space-between;
+			align-items: center; padding: 0.4rem 0.6rem;
+			background: rgba(0,0,0,0.25); border-radius: 6px;
+			margin-bottom: 0.3rem; font-size: 14px;
+			}
+			.member button {
+			padding: 0.25rem 0.6rem; font-size: 12px;
+			}
+			.lobby-actions {
+			display: flex; gap: 0.5rem; margin-top: 1.5rem;
+			}
+			.lobby-actions > * { flex: 1; }
+			.error { color: #ff8a8a; font-size: 14px; min-height: 1.2rem; margin-top: 0.5rem; }
+			.status { font-size: 12px; color: #6a6a72; margin-top: 0.5rem; text-align: center; }
+			.empty { color: #6a6a72; font-size: 13px; font-style: italic; }
+			.seal { font-family: monospace; font-size: 11px; color: #4a4a52;
+			margin-top: 1.5rem; text-align: center; white-space: pre; }
+		</style>
+	</head>
+	<body>
+		<div class="card">
+			<div id="screen-enter">
+				<h1>PictureNames</h1>
+				<input id="nick" placeholder="Твой ник" value="riht" />
+				<button id="btn-create">Создать комнату</button>
+				<div style="text-align:center;color:#6a6a72;font-size:12px;margin:0.8rem 0;">или</div>
+				<input id="code" placeholder="Код комнаты" maxlength="4" style="text-transform: uppercase;" />
+				<button id="btn-join">Войти по коду</button>
+				<div class="error" id="error"></div>
+			</div>
 
-        <div id="screen-lobby" hidden>
-            <h1>Лобби</h1>
-            <div class="code-display" id="room-code">----</div>
-            <h2>Игроки</h2>
-            <ul id="players"></ul>
-            <h2>Команды</h2>
-            <div id="teams"></div>
-            <div class="status" id="status"></div>
-        </div>
+			<div id="screen-lobby" hidden="">
+				<h1>
+					Лобби <span class="code-display" id="room-code"></span>
+				</h1>
 
-        <div class="seal">// [riht] est via recta () => {真理} > {}</div>
-    </div>
+				<div class="team-block Blue">
+					<h3>Синие</h3>
+					<div id="team-Blue"></div>
+				</div>
+				<div class="team-block Red">
+					<h3>Красные</h3>
+					<div id="team-Red"></div>
+				</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-    <script>
-        const state = { connection: null, roomId: null };
-        const $ = id => document.getElementById(id);
+				<h2>Без команды</h2>
+				<div id="team-none"></div>
 
-        function showError(msg) { $('error').textContent = msg; }
+				<div class="lobby-actions">
+					<button id="btn-start" hidden="">Начать игру</button>
+				</div>
 
-        async function post(url, body) {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                throw new Error(err.error || `HTTP ${resp.status}`);
+				<div class="error" id="lobby-error"></div>
+				<div class="status" id="status">Подключение…</div>
+			</div>
+
+			<div class="seal">// [riht] est via recta () => {真理} > {}</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+		<script>
+			const state = { connection: null, roomId: null, myPlayerId: null, lobby: null };
+			const $ = id => document.getElementById(id);
+
+			async function post(url, body) {
+			const resp = await fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+			});
+			if (!resp.ok) {
+			const err = await resp.json().catch(() => ({}));
+			throw new Error(err.error || `HTTP ${resp.status}`);
+			}
+			return resp.json();
+			}
+
+			function findMe(lobby) {
+			return lobby.players.find(p => p.id === state.myPlayerId);
+			}
+
+			async function enterLobby(lobby) {
+			state.roomId = lobby.roomId;
+			state.lobby = lobby;
+			$('screen-enter').hidden = true;
+			$('screen-lobby').hidden = false;
+			render(lobby);
+
+			const conn = new signalR.HubConnectionBuilder()
+			.withUrl('/gamehub')
+			.withAutomaticReconnect()
+			.build();
+
+			conn.on('LobbyUpdated', l => {
+			state.lobby = l;
+			if (l.state === 'InGame') {
+			window.location.href = `/game.html?roomId=${l.roomId}&playerId=${state.myPlayerId}`;
+			return;
+			}
+			render(l);
+			});
+
+			conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
+			conn.onreconnected(async () => {
+			$('status').textContent = 'Подключено';
+			await conn.invoke('JoinRoom', state.roomId);
+			});
+			conn.onclose(() => $('status').textContent = 'Соединение закрыто');
+
+			await conn.start();
+			await conn.invoke('JoinRoom', state.roomId);
+			state.connection = conn;
+			$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
+			}
+
+			function render(lobby) {
+			$('room-code').textContent = lobby.code;
+
+			renderTeam('Blue', lobby);
+			renderTeam('Red', lobby);
+
+			const none = $('team-none');
+			none.innerHTML = '';
+			const orphans = lobby.players.filter(p => !p.teamColor);
+			if (orphans.length === 0) {
+			none.innerHTML = '<div class="empty">Пусто</div>';
+			} else {
+			for (const p of orphans) {
+			none.appendChild(makeMember(p, lobby, 'none'));
+			}
+			}
+
+			const me = findMe(lobby);
+			$('btn-start').hidden = !(me && me.isHost);
+			$('btn-start').disabled = !canStart(lobby);
+			}
+
+			function canStart(lobby) {
+			for (const color of ['Blue', 'Red']) {
+			const members = lobby.players.filter(p => p.teamColor === color);
+			if (members.length < 2) return false;
+                const team = lobby.teams.find(t => t.color === color);
+                if (!team || !team.spymasterId) return false;
             }
-            return resp.json();
+            return true;
         }
 
-        async function enterLobby(lobby) {
-            state.roomId = lobby.roomId;
-            $('screen-enter').hidden = true;
-            $('screen-lobby').hidden = false;
-            render(lobby);
+        function renderTeam(color, lobby) {
+            const container = $('team-' + color);
+            container.innerHTML = '';
+            const members = lobby.players.filter(p => p.teamColor === color);
+            if (members.length === 0) {
+                container.innerHTML = '<div class="empty">Пусто</div>';
+			return;
+			}
+			for (const p of members) {
+			container.appendChild(makeMember(p, lobby, color));
+			}
+			}
 
-            const conn = new signalR.HubConnectionBuilder()
-                .withUrl('/gamehub')
-                .withAutomaticReconnect()
-                .build();
+			function makeMember(player, lobby, currentTeam) {
+			const div = document.createElement('div');
+			div.className = 'member';
 
-            conn.on('LobbyUpdated', render);
-            conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
-            conn.onreconnected(() => $('status').textContent = 'Подключено');
+			const left = document.createElement('div');
+			const crown = player.isHost ? ' 👑' : '';
+			const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер' : '';
+			left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}</span>`;
+			div.appendChild(left);
 
-            await conn.start();
-            await conn.invoke('JoinRoom', state.roomId);
-            state.connection = conn;
-            $('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
-        }
+			const me = findMe(lobby);
+			if (!me || me.id !== player.id) return div;
 
-        function render(lobby) {
-            $('room-code').textContent = lobby.code;
+			const actions = document.createElement('div');
+			actions.style.display = 'flex';
+			actions.style.gap = '0.3rem';
 
-            const players = $('players');
-            players.innerHTML = '';
-            for (const p of lobby.players) {
-                const li = document.createElement('li');
-                const crown = p.isHost ? ' 👑' : '';
-                const off = p.isConnected ? '' : ' · offline';
-                const team = p.teamColor ? ` · ${p.teamColor}` : '';
-                li.innerHTML = `<span>${escapeHtml(p.nickname)}${crown}${team}</span><span style="color:#6a6a72">${p.role}${off}</span>`;
-                players.appendChild(li);
-            }
+			if (currentTeam === 'none') {
+			const blueBtn = document.createElement('button');
+			blueBtn.textContent = 'Синие';
+			blueBtn.onclick = () => assignTeam('Blue');
+			actions.appendChild(blueBtn);
 
-            const teams = $('teams');
-            teams.innerHTML = '';
-            for (const t of lobby.teams) {
-                const div = document.createElement('div');
-                div.className = 'team ' + t.color;
-                div.textContent = `${t.color} · очки: ${t.score}`;
-                teams.appendChild(div);
-            }
-        }
+			const redBtn = document.createElement('button');
+			redBtn.textContent = 'Красные';
+			redBtn.onclick = () => assignTeam('Red');
+			actions.appendChild(redBtn);
+			} else {
+			if (player.role !== 'Spymaster') {
+			const spyBtn = document.createElement('button');
+			spyBtn.textContent = 'Спаймастер';
+			spyBtn.onclick = () => assignRole('Spymaster');
+			actions.appendChild(spyBtn);
+			} else {
+			const operBtn = document.createElement('button');
+			operBtn.textContent = 'Снять спаймастера';
+			operBtn.onclick = () => assignRole('Operative');
+			actions.appendChild(operBtn);
+			}
 
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, c => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
-        }
+			const leaveBtn = document.createElement('button');
+			leaveBtn.textContent = 'Выйти';
+			leaveBtn.onclick = () => assignTeam(null);
+			actions.appendChild(leaveBtn);
+			}
 
-        $('btn-create').onclick = async () => {
-            showError('');
-            const nick = $('nick').value.trim();
-            if (!nick) return showError('Введи ник');
-            try {
-                const lobby = await post('/api/rooms', { nickname: nick });
-                await enterLobby(lobby);
-            } catch (e) { showError(e.message); }
-        };
+			div.appendChild(actions);
+			return div;
+			}
 
-        $('btn-join').onclick = async () => {
-            showError('');
-            const nick = $('nick').value.trim();
-            const code = $('code').value.trim().toUpperCase();
-            if (!nick) return showError('Введи ник');
-            if (!code) return showError('Введи код');
-            try {
-                const lobby = await post(`/api/rooms/${code}/join`, { nickname: nick });
-                await enterLobby(lobby);
-            } catch (e) { showError(e.message); }
-        };
-    </script>
-</body>
+			async function assignTeam(teamColor) {
+			$('lobby-error').textContent = '';
+			try {
+			await post(`/api/rooms/${state.roomId}/team`, { playerId: state.myPlayerId, teamColor });
+			} catch (e) { $('lobby-error').textContent = e.message; }
+			}
+
+			async function assignRole(role) {
+			$('lobby-error').textContent = '';
+			try {
+			await post(`/api/rooms/${state.roomId}/role`, { playerId: state.myPlayerId, role });
+			} catch (e) { $('lobby-error').textContent = e.message; }
+			}
+
+			$('btn-start').onclick = async () => {
+			$('lobby-error').textContent = '';
+			try {
+			await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
+			} catch (e) { $('lobby-error').textContent = e.message; }
+			};
+
+			function escapeHtml(s) {
+			return String(s).replace(/[&<>"']/g, c => ({
+			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
+			}
+
+			$('btn-create').onclick = async () => {
+			$('error').textContent = '';
+			const nick = $('nick').value.trim();
+			if (!nick) return $('error').textContent = 'Введи ник';
+			try {
+			const lobby = await post('/api/rooms', { nickname: nick });
+			state.myPlayerId = lobby.players.find(p => p.nickname === nick).id;
+			await enterLobby(lobby);
+			} catch (e) { $('error').textContent = e.message; }
+			};
+
+			$('btn-join').onclick = async () => {
+			$('error').textContent = '';
+			const nick = $('nick').value.trim();
+			const code = $('code').value.trim().toUpperCase();
+			if (!nick) return $('error').textContent = 'Введи ник';
+			if (!code) return $('error').textContent = 'Введи код';
+			try {
+			const lobby = await post(`/api/rooms/${code}/join`, { nickname: nick });
+			state.myPlayerId = lobby.players.find(p => p.nickname === nick).id;
+			await enterLobby(lobby);
+			} catch (e) { $('error').textContent = e.message; }
+			};
+		</script>
+	</body>
 </html>

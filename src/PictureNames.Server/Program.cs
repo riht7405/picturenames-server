@@ -5,6 +5,7 @@ using PictureNames.Server.Hubs;
 using PictureNames.Server.Services;
 using PictureNames.Server.Services.Dto;
 using PictureNames.Server.Services.Notifications;
+using PictureNames.Server.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=picturenames.db"));
 
 builder.Services.AddScoped<RoomService>();
+builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<ILobbyNotifier, SignalRLobbyNotifier>();
 
 var app = builder.Build();
@@ -35,6 +37,25 @@ app.UseStaticFiles();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+}
+
+// Seed placeholder-картинок, если база пустая
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (!db.Images.Any())
+    {
+        for (int i = 1; i <= 50; i++)
+        {
+            db.Images.Add(new Image
+            {
+                Url = $"https://picsum.photos/seed/pn{i}/300/300",
+                AltText = $"Картинка {i}",
+                IsPublic = true
+            });
+        }
+        db.SaveChanges();
+    }
 }
 
 // app.UseHttpsRedirection();
@@ -86,6 +107,37 @@ app.MapGet("/api/rooms/{roomId:guid}", async (Guid roomId, RoomService rooms, Ca
     {
         return Results.NotFound(new { error = ex.Message });
     }
+});
+
+app.MapPost("/api/rooms/{roomId:guid}/team", async (Guid roomId, AssignTeamRequest req, RoomService rooms, CancellationToken ct) =>
+{
+    try { return Results.Ok(await rooms.AssignTeamAsync(roomId, req.PlayerId, req.TeamColor, ct)); }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+app.MapPost("/api/rooms/{roomId:guid}/role", async (Guid roomId, AssignRoleRequest req, RoomService rooms, CancellationToken ct) =>
+{
+    try { return Results.Ok(await rooms.AssignRoleAsync(roomId, req.PlayerId, req.Role, ct)); }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+app.MapPost("/api/rooms/{roomId:guid}/start", async (Guid roomId, StartGameRequest req, RoomService rooms, CancellationToken ct) =>
+{
+    try { await rooms.StartGameAsync(roomId, req.PlayerId, ct); return Results.Ok(new { ok = true }); }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+app.MapGet("/api/rooms/{roomId:guid}/game/{playerId:guid}", async (Guid roomId, Guid playerId, GameService game, CancellationToken ct) =>
+{
+    try
+    {
+        var room = await game.GetForOperativeAsync(roomId, playerId, ct);
+        // Если игрок — спаймастер, отдаём расширенный DTO
+        if (room.YourRole == PlayerRole.Spymaster)
+            return Results.Ok(await game.GetForSpymasterAsync(roomId, playerId, ct));
+        return Results.Ok(room);
+    }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
 // === Шаблонный weatherforecast — оставим для быстрой проверки живости сервера ===

@@ -14,11 +14,13 @@ public class RoomService
     // Алфавит без 0/O, 1/I/L — чтобы не путать при вводе с чужого экрана
     private const string CodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private const int CodeLength = 4;
+    private readonly GameService _game;
 
-    public RoomService(AppDbContext db, ILobbyNotifier notifier)
+    public RoomService(AppDbContext db, ILobbyNotifier notifier, GameService game)
     {
         _db = db;
         _notifier = notifier;
+        _game = game;
     }
 
     public async Task<LobbyDto> CreateRoomAsync(string nickname, CancellationToken ct = default)
@@ -140,5 +142,119 @@ public class RoomService
         for (int i = 0; i < CodeLength; i++)
             buffer[i] = CodeAlphabet[Random.Shared.Next(CodeAlphabet.Length)];
         return new string(buffer);
+    }
+
+    public async Task<LobbyDto> AssignTeamAsync(Guid roomId, Guid playerId, TeamColor? teamColor, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        if (room.State != RoomState.Lobby)
+            throw new InvalidOperationException("Партия уже началась.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (teamColor is null)
+        {
+            player.TeamId = null;
+            player.Role = PlayerRole.Operative;
+        }
+        else
+        {
+            var team = room.Teams.First(t => t.Color == teamColor.Value);
+            player.TeamId = team.Id;
+
+            // Если игрок был спаймастером другой команды — снимаем
+            foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
+                t.SpymasterId = null;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        var lobby = await GetLobbyAsync(roomId, ct);
+        await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
+        return lobby;
+    }
+
+    public async Task<LobbyDto> AssignRoleAsync(Guid roomId, Guid playerId, PlayerRole role, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        if (room.State != RoomState.Lobby)
+            throw new InvalidOperationException("Партия уже началась.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (role == PlayerRole.Spymaster)
+        {
+            if (player.TeamId is null)
+                throw new InvalidOperationException("Сначала выбери команду.");
+
+            var team = room.Teams.First(t => t.Id == player.TeamId.Value);
+
+            // Если в команде уже есть спаймастер — снимаем его
+            if (team.SpymasterId.HasValue && team.SpymasterId.Value != playerId)
+            {
+                var previous = room.Players.FirstOrDefault(p => p.Id == team.SpymasterId.Value);
+                if (previous is not null) previous.Role = PlayerRole.Operative;
+            }
+
+            team.SpymasterId = playerId;
+            player.Role = PlayerRole.Spymaster;
+        }
+        else
+        {
+            // Возвращаемся в оперативники — снимаем с команды, если были спаймастером
+            foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
+                t.SpymasterId = null;
+            player.Role = PlayerRole.Operative;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        var lobby = await GetLobbyAsync(roomId, ct);
+        await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
+        return lobby;
+    }
+
+    public async Task StartGameAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        if (room.State != RoomState.Lobby)
+            throw new InvalidOperationException("Игра уже идёт или завершена.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (!player.IsHost)
+            throw new InvalidOperationException("Только хост может начать игру.");
+
+        foreach (var team in room.Teams)
+        {
+            var members = room.Players.Where(p => p.TeamId == team.Id).ToList();
+            if (members.Count < 2)
+                throw new InvalidOperationException($"В команде {team.Color} должно быть минимум 2 игрока.");
+
+            if (team.SpymasterId is null)
+                throw new InvalidOperationException($"В команде {team.Color} не выбран спаймастер.");
+        }
+
+        await _game.GenerateFieldAsync(roomId, ct);
+
+        // После смены состояния — уведомляем лобби, клиенты подхватят и перейдут на игровой экран
+        var lobby = await GetLobbyAsync(roomId, ct);
+        await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
     }
 }
