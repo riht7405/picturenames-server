@@ -1,0 +1,29 @@
+### Переменные окружения
+@contentType = application/json
+
+### Проверка, что сервер жив
+GET {{host}}/weatherforecast
+
+### Создать комнату — riht становится хостом
+# @name createRoom
+POST {{host}}/api/rooms
+Content-Type: {{contentType}}
+
+{
+  "nickname": "riht"
+}
+
+### Сохраняем код и ID из ответа в переменные
+@roomCode = {{createRoom.response.body.$.code}}
+@roomId = {{createRoom.response.body.$.roomId}}
+
+### Войти вторым игроком — bro
+POST {{host}}/api/rooms/{{roomCode}}/join
+Content-Type: {{contentType}}
+
+{
+  "nickname": "bro"
+}
+
+### Получить текущее состояние лобби
+GET {{host}}/api/rooms/{{roomId}}
