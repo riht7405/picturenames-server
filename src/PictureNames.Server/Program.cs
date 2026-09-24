@@ -1,24 +1,22 @@
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using PictureNames.Server.Data;
+using PictureNames.Server.Entities;
 using PictureNames.Server.Hubs;
 using PictureNames.Server.Services;
 using PictureNames.Server.Services.Dto;
 using PictureNames.Server.Services.Notifications;
-using PictureNames.Server.Entities;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // === Сервисы ===
-
 builder.Services.AddSignalR()
-    .AddJsonProtocol(o =>
-        o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.ConfigureHttpJsonOptions(o =>
-    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-
-builder.Services.AddOpenApi();
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=picturenames.db"));
@@ -27,43 +25,39 @@ builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<ILobbyNotifier, SignalRLobbyNotifier>();
 
+builder.Services.AddHostedService<RoomCleanupService>();
+
 var app = builder.Build();
 
-// === Pipeline ===
-
+// === Статика ===
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-// Seed placeholder-картинок, если база пустая
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (!db.Images.Any())
-    {
-        for (int i = 1; i <= 50; i++)
-        {
-            db.Images.Add(new Image
-            {
-                Url = $"https://picsum.photos/seed/pn{i}/300/300",
-                AltText = $"Картинка {i}",
-                IsPublic = true
-            });
-        }
-        db.SaveChanges();
-    }
-}
-
-// app.UseHttpsRedirection();
-
+// === SignalR ===
 app.MapHub<GameHub>("/gamehub");
 
-// === REST: Лобби ===
+// === SVG-заглушки картинок ===
+// Работает офлайн. Когда появятся настоящие картинки — просто замени URL в БД.
+app.MapGet("/img/{seed:int}.svg", (int seed) =>
+{
+    var hue = (seed * 47) % 360;
+    var svg = $"""
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="hsl({hue}, 35%, 22%)"/>
+              <stop offset="100%" stop-color="hsl({(hue + 40) % 360}, 30%, 14%)"/>
+            </linearGradient>
+          </defs>
+          <rect width="300" height="300" fill="url(#g)"/>
+          <text x="150" y="165" text-anchor="middle" font-family="system-ui, sans-serif"
+                font-size="96" font-weight="300" fill="hsl({hue}, 60%, 75%)" opacity="0.85">{seed}</text>
+        </svg>
+        """;
+    return Results.Content(svg, "image/svg+xml");
+});
 
+// === REST: Лобби ===
 app.MapPost("/api/rooms", async (CreateRoomRequest req, RoomService rooms, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Nickname))
@@ -109,6 +103,7 @@ app.MapGet("/api/rooms/{roomId:guid}", async (Guid roomId, RoomService rooms, Ca
     }
 });
 
+// === REST: Команды и роли ===
 app.MapPost("/api/rooms/{roomId:guid}/team", async (Guid roomId, AssignTeamRequest req, RoomService rooms, CancellationToken ct) =>
 {
     try { return Results.Ok(await rooms.AssignTeamAsync(roomId, req.PlayerId, req.TeamColor, ct)); }
@@ -121,49 +116,58 @@ app.MapPost("/api/rooms/{roomId:guid}/role", async (Guid roomId, AssignRoleReque
     catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
+// === REST: Партия ===
 app.MapPost("/api/rooms/{roomId:guid}/start", async (Guid roomId, StartGameRequest req, RoomService rooms, CancellationToken ct) =>
 {
-    try { await rooms.StartGameAsync(roomId, req.PlayerId, ct); return Results.Ok(new { ok = true }); }
-    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    try
+    {
+        await rooms.StartGameAsync(roomId, req.PlayerId, ct);
+        return Results.Ok(new { ok = true });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
 });
 
 app.MapGet("/api/rooms/{roomId:guid}/game/{playerId:guid}", async (Guid roomId, Guid playerId, GameService game, CancellationToken ct) =>
 {
     try
     {
-        var room = await game.GetForOperativeAsync(roomId, playerId, ct);
-        // Если игрок — спаймастер, отдаём расширенный DTO
-        if (room.YourRole == PlayerRole.Spymaster)
+        var asOperative = await game.GetForOperativeAsync(roomId, playerId, ct);
+        if (asOperative.YourRole == PlayerRole.Spymaster)
             return Results.Ok(await game.GetForSpymasterAsync(roomId, playerId, ct));
-        return Results.Ok(room);
+        return Results.Ok(asOperative);
     }
-    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
 });
 
-// === Шаблонный weatherforecast — оставим для быстрой проверки живости сервера ===
-
-var summaries = new[]
+// === Автомиграция + seed ===
+using (var scope = app.Services.CreateScope())
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild",
-    "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast(
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    // Применяем миграции при старте. Если БД нет — создастся.
+    // Если есть, но устарела — обновится.
+    db.Database.Migrate();
+
+    // Seed картинок, если база пустая
+    if (!db.Images.Any())
+    {
+        for (int i = 1; i <= 50; i++)
+        {
+            db.Images.Add(new Image
+            {
+                Url = $"/img/{i}.svg",
+                AltText = $"Картинка {i}",
+                IsPublic = true
+            });
+        }
+        db.SaveChanges();
+    }
+}
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
