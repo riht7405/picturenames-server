@@ -5,6 +5,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+app.UseDefaultFiles();   // ищет index.html в wwwroot
+app.UseStaticFiles();    // раздаёт файлы из wwwroot
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -12,7 +14,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 var summaries = new[]
 {
@@ -39,3 +41,4 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
