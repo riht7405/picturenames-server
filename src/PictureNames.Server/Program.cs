@@ -1,10 +1,15 @@
 using PictureNames.Server.Hubs;
+using Microsoft.EntityFrameworkCore;
+using PictureNames.Server.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite("Data Source=picturenames.db"));
 
 var app = builder.Build();
 app.UseDefaultFiles();   // ищет index.html в wwwroot
