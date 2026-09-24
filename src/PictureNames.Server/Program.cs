@@ -1,12 +1,15 @@
-var builder = WebApplication.CreateBuilder(args);
+using PictureNames.Server.Hubs;
 
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSignalR();
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 app.UseDefaultFiles();   // ищет index.html в wwwroot
-app.UseStaticFiles();    // раздаёт файлы из wwwroot
+app.UseStaticFiles();  // раздаёт файлы из wwwroot
+app.MapHub<GameHub>("/gamehub");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -13,26 +13,118 @@
             min-height: 100vh;
             margin: 0;
         }
-        h1 { font-weight: 300; letter-spacing: 0.05em; }
+        .card {
+            width: 480px;
+            padding: 2rem;
+            background: #17171c;
+            border-radius: 12px;
+            border: 1px solid #26262e;
+        }
+        h1 { font-weight: 300; letter-spacing: 0.05em; margin-top: 0; }
+        input, button {
+            font: inherit;
+            padding: 0.6rem 0.8rem;
+            background: #0f0f12;
+            color: #e8e8e8;
+            border: 1px solid #2e2e38;
+            border-radius: 6px;
+        }
+        button { cursor: pointer; background: #2a2a36; }
+        button:hover { background: #353542; }
+        .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .row input:first-child { width: 120px; }
+        .row input:nth-child(2) { flex: 1; }
+        #log {
+            margin-top: 1rem;
+            padding: 0.8rem;
+            background: #0f0f12;
+            border-radius: 6px;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        #log div { margin-bottom: 0.3rem; }
+        .nick { color: #7ab8ff; }
+        .time { color: #6a6a72; font-size: 12px; margin-left: 0.5rem; }
+        .status { font-size: 12px; color: #6a6a72; margin-bottom: 1rem; }
         .seal {
             font-family: monospace;
-            font-size: 12px;
-            color: #6a6a72;
-            margin-top: 2rem;
+            font-size: 11px;
+            color: #4a4a52;
+            margin-top: 1.5rem;
             white-space: pre;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div>
-        <h1>PictureNames</h1>
-        <p>Сервер жив. Каркас стоит. Осталось наполнить хаосом.</p>
-        <div class="seal">
-//          =[/̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅\]=
-//          | [riht]  est  via  recta  |
-//          |   () => {真理} > {}      |
-//          =\[_______________________]/=
+    <div class="card">
+        <h1>PictureNames · SignalR тест</h1>
+        <div class="status" id="status">Соединение…</div>
+
+        <div class="row">
+            <input id="nick" placeholder="Ник" value="riht" />
+            <input id="text" placeholder="Сообщение..." />
+            <button id="send">Отправить</button>
         </div>
+
+        <div id="log"></div>
+
+        <div class="seal">// [riht] est via recta () => {真理} > {}</div>
     </div>
+
+    <!-- Клиент SignalR из CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+        const nickEl = document.getElementById('nick');
+        const textEl = document.getElementById('text');
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        // Подписка на событие сервера
+        connection.on("MessageReceived", (nick, text, timeUtc) => {
+            const time = new Date(timeUtc).toLocaleTimeString();
+            const row = document.createElement('div');
+            row.innerHTML = `<span class="nick">${escapeHtml(nick)}:</span> ${escapeHtml(text)}<span class="time">${time}</span>`;
+            logEl.appendChild(row);
+            logEl.scrollTop = logEl.scrollHeight;
+        });
+
+        connection.onreconnecting(() => statusEl.textContent = 'Соединение потеряно, переподключение…');
+        connection.onreconnected(() => statusEl.textContent = 'Переподключено');
+        connection.onclose(() => statusEl.textContent = 'Соединение закрыто');
+
+        // Запуск соединения
+        connection.start()
+            .then(() => statusEl.textContent = 'Подключено · ' + connection.connectionId.slice(0, 8))
+            .catch(err => statusEl.textContent = 'Ошибка: ' + err);
+
+        // Отправка сообщения
+        async function send() {
+            const nick = nickEl.value.trim() || 'anon';
+            const text = textEl.value.trim();
+            if (!text) return;
+            await connection.invoke("SendMessage", nick, text);
+            textEl.value = '';
+            textEl.focus();
+        }
+
+        document.getElementById('send').addEventListener('click', send);
+        textEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+        // Простая защита от XSS при выводе
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+    </script>
 </body>
 </html>
