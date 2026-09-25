@@ -10,11 +10,10 @@ public class RoomService
 {
     private readonly AppDbContext _db;
     private readonly ILobbyNotifier _notifier;
+    private readonly GameService _game;
 
-    // Алфавит без 0/O, 1/I/L — чтобы не путать при вводе с чужого экрана
     private const string CodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private const int CodeLength = 4;
-    private readonly GameService _game;
 
     public RoomService(AppDbContext db, ILobbyNotifier notifier, GameService game)
     {
@@ -34,8 +33,6 @@ public class RoomService
             Settings = new GameSettings()
         };
 
-        // Две команды создаются вместе с комнатой,
-        // чтобы не было состояния "команда ещё не готова".
         room.Teams.Add(new Team { Color = TeamColor.Blue });
         room.Teams.Add(new Team { Color = TeamColor.Red });
 
@@ -51,38 +48,44 @@ public class RoomService
         _db.Rooms.Add(room);
         await _db.SaveChangesAsync(ct);
 
-        // Никого ещё нет в комнате — уведомлять некого.
         return await GetLobbyAsync(room.Id, ct);
     }
 
     public async Task<LobbyDto> JoinRoomAsync(string code, string nickname, CancellationToken ct = default)
     {
-        var normalizedCode = code.Trim().ToUpperInvariant();
-
         var room = await _db.Rooms
-            .FirstOrDefaultAsync(r => r.Code == normalizedCode, ct)
+            .FirstOrDefaultAsync(r => r.Code == code.ToUpperInvariant(), ct)
             ?? throw new InvalidOperationException("Комната не найдена.");
 
-        if (room.State != RoomState.Lobby)
-            throw new InvalidOperationException("Партия уже началась. Дождись следующей.");
-
         var trimmedNick = nickname.Trim();
-        var alreadyInside = await _db.Players
-            .AnyAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
 
-        if (alreadyInside)
-            throw new InvalidOperationException("Этот ник уже занят в комнате.");
+        // Reconnect: если такой игрок уже в комнате — восстанавливаем
+        var existing = await _db.Players
+            .FirstOrDefaultAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
+
+        if (existing is not null)
+        {
+            existing.IsConnected = true;
+            await _db.SaveChangesAsync(ct);
+            var lobbyExisting = await GetLobbyAsync(room.Id, ct);
+            await _notifier.LobbyUpdatedAsync(room.Id, lobbyExisting, ct);
+            return lobbyExisting;
+        }
+
+        // Новый игрок: в лобби — оперативник, в игре — зритель
+        var role = room.State == RoomState.Lobby
+            ? PlayerRole.Operative
+            : PlayerRole.Spectator;
 
         _db.Players.Add(new Player
         {
             RoomId = room.Id,
             Nickname = trimmedNick,
-            Role = PlayerRole.Operative,
+            Role = role,
             IsConnected = true
         });
 
         await _db.SaveChangesAsync(ct);
-
         var lobby = await GetLobbyAsync(room.Id, ct);
         await _notifier.LobbyUpdatedAsync(room.Id, lobby, ct);
         return lobby;
@@ -96,7 +99,6 @@ public class RoomService
             .FirstOrDefaultAsync(r => r.Id == roomId, ct)
             ?? throw new InvalidOperationException("Комната не найдена.");
 
-        // Быстрый поиск цвета команды по её Id — чтобы не гонять LINQ внутри LINQ
         var teamColors = room.Teams.ToDictionary(t => t.Id, t => t.Color);
 
         var players = room.Players
@@ -120,28 +122,6 @@ public class RoomService
         var host = room.Players.FirstOrDefault(p => p.IsHost);
 
         return new LobbyDto(room.Id, room.Code, room.State, host?.Id, players, teams);
-    }
-
-    private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
-    {
-        // 32^4 = ~1M комбинаций. Для локальной игры коллизии почти невозможны.
-        // На всякий случай — до 10 попыток.
-        for (int attempt = 0; attempt < 10; attempt++)
-        {
-            var code = RandomCode();
-            var exists = await _db.Rooms.AnyAsync(r => r.Code == code, ct);
-            if (!exists) return code;
-        }
-
-        throw new InvalidOperationException("Не удалось сгенерировать уникальный код комнаты.");
-    }
-
-    private static string RandomCode()
-    {
-        Span<char> buffer = stackalloc char[CodeLength];
-        for (int i = 0; i < CodeLength; i++)
-            buffer[i] = CodeAlphabet[Random.Shared.Next(CodeAlphabet.Length)];
-        return new string(buffer);
     }
 
     public async Task<LobbyDto> AssignTeamAsync(Guid roomId, Guid playerId, TeamColor? teamColor, CancellationToken ct = default)
@@ -168,7 +148,6 @@ public class RoomService
             var team = room.Teams.First(t => t.Color == teamColor.Value);
             player.TeamId = team.Id;
 
-            // Если игрок был спаймастером другой команды — снимаем
             foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
                 t.SpymasterId = null;
         }
@@ -200,7 +179,6 @@ public class RoomService
 
             var team = room.Teams.First(t => t.Id == player.TeamId.Value);
 
-            // Если в команде уже есть спаймастер — снимаем его
             if (team.SpymasterId.HasValue && team.SpymasterId.Value != playerId)
             {
                 var previous = room.Players.FirstOrDefault(p => p.Id == team.SpymasterId.Value);
@@ -212,7 +190,6 @@ public class RoomService
         }
         else
         {
-            // Возвращаемся в оперативники — снимаем с команды, если были спаймастером
             foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
                 t.SpymasterId = null;
             player.Role = PlayerRole.Operative;
@@ -253,8 +230,26 @@ public class RoomService
 
         await _game.GenerateFieldAsync(roomId, ct);
 
-        // После смены состояния — уведомляем лобби, клиенты подхватят и перейдут на игровой экран
         var lobby = await GetLobbyAsync(roomId, ct);
         await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
+    }
+
+    private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
+    {
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            var code = RandomCode();
+            var exists = await _db.Rooms.AnyAsync(r => r.Code == code, ct);
+            if (!exists) return code;
+        }
+        throw new InvalidOperationException("Не удалось сгенерировать уникальный код комнаты.");
+    }
+
+    private static string RandomCode()
+    {
+        Span<char> buffer = stackalloc char[CodeLength];
+        for (int i = 0; i < CodeLength; i++)
+            buffer[i] = CodeAlphabet[Random.Shared.Next(CodeAlphabet.Length)];
+        return new string(buffer);
     }
 }

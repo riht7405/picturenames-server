@@ -131,6 +131,21 @@
 			async function enterLobby(lobby) {
 			state.roomId = lobby.roomId;
 			state.lobby = lobby;
+
+			// Если партия уже идёт или закончилась — сразу на игровой экран
+			if (lobby.state === 'InGame' || lobby.state === 'Finished') {
+			let meId = state.myPlayerId;
+			if (!meId) {
+			const me = lobby.players.find(p => p.nickname === $('nick').value.trim());
+			meId = me?.id;
+			}
+			if (meId) {
+			state.myPlayerId = meId;
+			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${meId}`;
+			return;
+			}
+			}
+
 			$('screen-enter').hidden = true;
 			$('screen-lobby').hidden = false;
 			render(lobby);
@@ -142,7 +157,7 @@
 
 			conn.on('LobbyUpdated', l => {
 			state.lobby = l;
-			if (l.state === 'InGame') {
+			if (l.state === 'InGame' || l.state === 'Finished') {
 			window.location.href = `/game.html?roomId=${l.roomId}&playerId=${state.myPlayerId}`;
 			return;
 			}
@@ -213,7 +228,8 @@
 
 			const left = document.createElement('div');
 			const crown = player.isHost ? ' 👑' : '';
-			const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер' : '';
+			const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер'
+			: (player.role === 'Spectator' ? ' · Зритель' : '');
 			left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}</span>`;
 			div.appendChild(left);
 
@@ -307,6 +323,33 @@
 			await enterLobby(lobby);
 			} catch (e) { $('error').textContent = e.message; }
 			};
+
+			// === Авто-восстановление сессии из URL ===
+			// Если пришли из game.html (после реванша или выхода из партии),
+			// сразу показываем лобби нужной комнаты без экрана входа.
+			window.addEventListener('DOMContentLoaded', async () => {
+			const params = new URLSearchParams(window.location.search);
+			const urlRoomId = params.get('roomId');
+			const urlPlayerId = params.get('playerId');
+
+			if (!urlRoomId || !urlPlayerId) return;
+
+			try {
+			const resp = await fetch(`/api/rooms/${urlRoomId}`);
+			if (!resp.ok) {
+			// Комната исчезла — чистим URL и оставляем экран входа
+			window.history.replaceState({}, '', '/lobby.html');
+			return;
+			}
+			const lobby = await resp.json();
+
+			state.myPlayerId = urlPlayerId;
+			await enterLobby(lobby);
+			} catch (e) {
+			$('error').textContent = 'Не удалось восстановить сессию: ' + e.message;
+			window.history.replaceState({}, '', '/lobby.html');
+			}
+			});
 		</script>
 	</body>
 </html>

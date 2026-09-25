@@ -99,7 +99,7 @@ public class GameService
         if (player.TeamId != room.CurrentTurnTeamId)
             throw new InvalidOperationException("Сейчас не ваш ход.");
 
-        if (room.GuessesAllowed > 0)
+        if (room.ClueWord is not null)
             throw new InvalidOperationException("В этом ходу подсказка уже дана.");
 
         if (string.IsNullOrWhiteSpace(word))
@@ -111,7 +111,7 @@ public class GameService
         room.ClueWord = word.Trim();
         room.ClueNumber = number;
         room.ClueTeamId = player.TeamId;
-        room.GuessesAllowed = number + 1; // классическое правило CodeNames: N + 1 попыток
+        room.GuessesAllowed = number; // для справки, не блокирует
         room.GuessCount = 0;
 
         _db.Moves.Add(new Move
@@ -148,11 +148,8 @@ public class GameService
         if (player.TeamId != room.CurrentTurnTeamId)
             throw new InvalidOperationException("Сейчас не ваш ход.");
 
-        if (room.GuessesAllowed == 0)
+        if (room.ClueWord is null)
             throw new InvalidOperationException("Сначала дождись подсказки.");
-
-        if (room.GuessCount >= room.GuessesAllowed)
-            throw new InvalidOperationException("Лимит попыток исчерпан.");
 
         var card = room.Cards.FirstOrDefault(c => c.Id == cardId)
             ?? throw new InvalidOperationException("Карта не найдена.");
@@ -193,14 +190,6 @@ public class GameService
             EndTurn(room);
         }
 
-        // ФИКС: если партия идёт и оперативник исчерпал лимит попыток "в плюс" — ход переходит
-        if (room.State == RoomState.InGame
-            && outcome == RevealOutcome.Correct
-            && room.GuessCount >= room.GuessesAllowed)
-        {
-            EndTurn(room);
-        }
-
         _db.Moves.Add(new Move
         {
             RoomId = roomId,
@@ -218,7 +207,7 @@ public class GameService
         return outcome;
     }
 
-    // === Ручное завершение хода оперативником ===
+    // === Завершение хода вручную ===
 
     public async Task EndTurnAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
@@ -240,11 +229,8 @@ public class GameService
         if (player.TeamId != room.CurrentTurnTeamId)
             throw new InvalidOperationException("Сейчас не ваш ход.");
 
-        if (room.GuessesAllowed == 0)
+        if (room.ClueWord is null)
             throw new InvalidOperationException("Сначала дождись подсказки.");
-
-        if (room.GuessCount == 0)
-            throw new InvalidOperationException("Сначала открой хотя бы одну карту.");
 
         _db.Moves.Add(new Move
         {
@@ -255,6 +241,46 @@ public class GameService
         });
 
         EndTurn(room);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    // === Реванш ===
+
+    public async Task ResetToLobbyAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (!player.IsHost)
+            throw new InvalidOperationException("Только хост может запустить реванш.");
+
+        var cards = _db.Cards.Where(c => c.RoomId == roomId);
+        _db.Cards.RemoveRange(cards);
+
+        foreach (var t in room.Teams)
+            t.Score = 0;
+
+        room.State = RoomState.Lobby;
+        room.CurrentTurnTeamId = null;
+        room.GuessCount = 0;
+        room.GuessesAllowed = 0;
+        room.ClueWord = null;
+        room.ClueNumber = null;
+        room.ClueTeamId = null;
+
+        // Spectator → Operative (новая партия, все играют)
+        foreach (var p in room.Players)
+        {
+            if (p.Role == PlayerRole.Spectator)
+                p.Role = PlayerRole.Operative;
+        }
+
         await _db.SaveChangesAsync(ct);
     }
 

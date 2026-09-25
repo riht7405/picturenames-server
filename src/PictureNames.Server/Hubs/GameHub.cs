@@ -88,6 +88,22 @@ public class GameHub : Hub
         await Clients.Caller.SendAsync("GameStateUpdated", dto);
     }
 
+    public async Task BroadcastGameStateAsync(Guid roomId)
+    {
+        var players = await _db.Players
+            .Where(p => p.RoomId == roomId && p.IsConnected && p.ConnectionId != null)
+            .ToListAsync();
+
+        foreach (var p in players)
+        {
+            object dto = p.Role == PlayerRole.Spymaster
+                ? await _game.GetForSpymasterAsync(roomId, p.Id)
+                : (object)await _game.GetForOperativeAsync(roomId, p.Id);
+
+            await Clients.Client(p.ConnectionId!).SendAsync("GameStateUpdated", dto);
+        }
+    }
+
     public async Task GiveClue(Guid roomId, Guid playerId, string word, int number)
     {
         await _game.GiveClueAsync(roomId, playerId, word, number);
@@ -113,24 +129,14 @@ public class GameHub : Hub
         await BroadcastGameStateAsync(roomId);
     }
 
-    // Рассылка состояния партии — каждому игроку отдельно, с учётом его роли.
-    public async Task BroadcastGameStateAsync(Guid roomId)
+    public async Task Rematch(Guid roomId, Guid playerId)
     {
-        var players = await _db.Players
-            .Where(p => p.RoomId == roomId && p.IsConnected && p.ConnectionId != null)
-            .ToListAsync();
+        await _game.ResetToLobbyAsync(roomId, playerId);
 
-        foreach (var p in players)
-        {
-            object dto = p.Role == PlayerRole.Spymaster
-                ? await _game.GetForSpymasterAsync(roomId, p.Id)
-                : (object)await _game.GetForOperativeAsync(roomId, p.Id);
-
-            await Clients.Client(p.ConnectionId!).SendAsync("GameStateUpdated", dto);
-        }
+        var lobby = await _rooms.GetLobbyAsync(roomId);
+        await Clients.Group(RoomGroup(roomId)).SendAsync("LobbyUpdated", lobby);
     }
 
-    // Тестовый чат из прошлых шагов
     public async Task SendMessage(string nickname, string text)
     {
         await Clients.All.SendAsync("MessageReceived", nickname, text, DateTime.UtcNow);
