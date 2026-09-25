@@ -193,6 +193,14 @@ public class GameService
             EndTurn(room);
         }
 
+        // ФИКС: если партия идёт и оперативник исчерпал лимит попыток "в плюс" — ход переходит
+        if (room.State == RoomState.InGame
+            && outcome == RevealOutcome.Correct
+            && room.GuessCount >= room.GuessesAllowed)
+        {
+            EndTurn(room);
+        }
+
         _db.Moves.Add(new Move
         {
             RoomId = roomId,
@@ -208,6 +216,46 @@ public class GameService
 
         await _db.SaveChangesAsync(ct);
         return outcome;
+    }
+
+    // === Ручное завершение хода оперативником ===
+
+    public async Task EndTurnAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        if (room.State != RoomState.InGame)
+            throw new InvalidOperationException("Партия не идёт.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (player.Role != PlayerRole.Operative)
+            throw new InvalidOperationException("Завершить ход может только оперативник.");
+
+        if (player.TeamId != room.CurrentTurnTeamId)
+            throw new InvalidOperationException("Сейчас не ваш ход.");
+
+        if (room.GuessesAllowed == 0)
+            throw new InvalidOperationException("Сначала дождись подсказки.");
+
+        if (room.GuessCount == 0)
+            throw new InvalidOperationException("Сначала открой хотя бы одну карту.");
+
+        _db.Moves.Add(new Move
+        {
+            RoomId = roomId,
+            PlayerId = playerId,
+            Type = MoveType.EndTurn,
+            Payload = null
+        });
+
+        EndTurn(room);
+        await _db.SaveChangesAsync(ct);
     }
 
     // === Сборка состояния ===

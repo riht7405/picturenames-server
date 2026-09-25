@@ -37,8 +37,6 @@ public class GameHub : Hub
     {
         _logger.LogInformation("Отключился: {ConnectionId}", Context.ConnectionId);
 
-        // Помечаем игрока как offline, чтобы UI показал "offline"
-        // и RoomCleanupService смог убрать мёртвые комнаты.
         var player = await _db.Players
             .FirstOrDefaultAsync(p => p.ConnectionId == Context.ConnectionId);
         if (player is not null)
@@ -51,18 +49,13 @@ public class GameHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    // ============================================================
-    // ЛОББИ
-    // ============================================================
+    // === Лобби ===
 
-    // Вызывается со страницы lobby.html после создания/входа.
-    // С этого момента клиент получает LobbyUpdated для своей комнаты.
     public async Task JoinRoom(Guid roomId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(roomId));
         _logger.LogInformation("Connection {conn} → комната {room}", Context.ConnectionId, roomId);
 
-        // Сразу отправляем текущий снапшот — чтобы клиент не ждал следующего события
         var lobby = await _rooms.GetLobbyAsync(roomId);
         await Clients.Caller.SendAsync("LobbyUpdated", lobby);
     }
@@ -70,15 +63,10 @@ public class GameHub : Hub
     public async Task LeaveRoom(Guid roomId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, RoomGroup(roomId));
-        _logger.LogInformation("Connection {conn} ← комната {room}", Context.ConnectionId, roomId);
     }
 
-    // ============================================================
-    // ПАРТИЯ
-    // ============================================================
+    // === Партия ===
 
-    // Вызывается со страницы game.html.
-    // Сохраняем ConnectionId игрока, добавляем в группу, отправляем персональный снапшот поля.
     public async Task JoinGame(Guid roomId, Guid playerId)
     {
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId);
@@ -93,33 +81,12 @@ public class GameHub : Hub
         _logger.LogInformation("Connection {conn} → партия {room} как {role}",
             Context.ConnectionId, roomId, player.Role);
 
-        // Отправляем персональный снапшот поля
         object dto = player.Role == PlayerRole.Spymaster
             ? await _game.GetForSpymasterAsync(roomId, playerId)
             : (object)await _game.GetForOperativeAsync(roomId, playerId);
 
         await Clients.Caller.SendAsync("GameStateUpdated", dto);
     }
-
-    // Рассылка состояния партии — каждому игроку отдельно, с учётом его роли.
-    // Вызывается сервисами при ходах, открытии карт и т.д.
-    public async Task BroadcastGameStateAsync(Guid roomId)
-    {
-        var players = await _db.Players
-            .Where(p => p.RoomId == roomId && p.IsConnected && p.ConnectionId != null)
-            .ToListAsync();
-
-        foreach (var p in players)
-        {
-            object dto = p.Role == PlayerRole.Spymaster
-                ? await _game.GetForSpymasterAsync(roomId, p.Id)
-                : (object)await _game.GetForOperativeAsync(roomId, p.Id);
-
-            await Clients.Client(p.ConnectionId!).SendAsync("GameStateUpdated", dto);
-        }
-    }
-
-    // === Ходы ===
 
     public async Task GiveClue(Guid roomId, Guid playerId, string word, int number)
     {
@@ -140,10 +107,30 @@ public class GameHub : Hub
         await BroadcastGameStateAsync(roomId);
     }
 
-    // ============================================================
-    // ТЕСТОВЫЙ ЧАТ (для отладки соединения)
-    // ============================================================
+    public async Task EndTurn(Guid roomId, Guid playerId)
+    {
+        await _game.EndTurnAsync(roomId, playerId);
+        await BroadcastGameStateAsync(roomId);
+    }
 
+    // Рассылка состояния партии — каждому игроку отдельно, с учётом его роли.
+    public async Task BroadcastGameStateAsync(Guid roomId)
+    {
+        var players = await _db.Players
+            .Where(p => p.RoomId == roomId && p.IsConnected && p.ConnectionId != null)
+            .ToListAsync();
+
+        foreach (var p in players)
+        {
+            object dto = p.Role == PlayerRole.Spymaster
+                ? await _game.GetForSpymasterAsync(roomId, p.Id)
+                : (object)await _game.GetForOperativeAsync(roomId, p.Id);
+
+            await Clients.Client(p.ConnectionId!).SendAsync("GameStateUpdated", dto);
+        }
+    }
+
+    // Тестовый чат из прошлых шагов
     public async Task SendMessage(string nickname, string text)
     {
         await Clients.All.SendAsync("MessageReceived", nickname, text, DateTime.UtcNow);
