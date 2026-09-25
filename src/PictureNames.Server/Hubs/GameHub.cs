@@ -44,6 +44,10 @@ public class GameHub : Hub
             player.IsConnected = false;
             player.ConnectionId = null;
             await _db.SaveChangesAsync();
+
+            // Сообщаем всем в комнате, что игрок ушёл
+            var lobby = await _rooms.GetLobbyAsync(player.RoomId);
+            await Clients.Group(RoomGroup(player.RoomId)).SendAsync("LobbyUpdated", lobby);
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -51,13 +55,40 @@ public class GameHub : Hub
 
     // === Лобби ===
 
-    public async Task JoinRoom(Guid roomId)
+    // Клиент вызывает после создания/входа/перезагрузки страницы.
+    // Сохраняем ConnectionId, оживляем IsConnected, подписываем на группу,
+    // шлём актуальный снапшот всем в комнате.
+    public async Task JoinRoom(Guid roomId, Guid playerId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(roomId));
-        _logger.LogInformation("Connection {conn} → комната {room}", Context.ConnectionId, roomId);
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId);
 
+        // Если игрок не найден или не в этой комнате — просто подписываем на группу,
+        // чтобы он хотя бы видел обновления.
+        if (player is null || player.RoomId != roomId)
+        {
+            _logger.LogWarning(
+                "JoinRoom: игрок {playerId} не найден в комнате {roomId}, только подписка",
+                playerId, roomId);
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(roomId));
+            var lobbyAnon = await _rooms.GetLobbyAsync(roomId);
+            await Clients.Caller.SendAsync("LobbyUpdated", lobbyAnon);
+            return;
+        }
+
+        // Связываем соединение с игроком
+        player.ConnectionId = Context.ConnectionId;
+        player.IsConnected = true;
+        await _db.SaveChangesAsync();
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(roomId));
+        _logger.LogInformation(
+            "Connection {conn} → комната {room} ({nick})",
+            Context.ConnectionId, roomId, player.Nickname);
+
+        // Broadcast всем — чтобы и себя увидели, и другие увидели, что ты online
         var lobby = await _rooms.GetLobbyAsync(roomId);
-        await Clients.Caller.SendAsync("LobbyUpdated", lobby);
+        await Clients.Group(RoomGroup(roomId)).SendAsync("LobbyUpdated", lobby);
     }
 
     public async Task LeaveRoom(Guid roomId)
@@ -69,16 +100,24 @@ public class GameHub : Hub
 
     public async Task JoinGame(Guid roomId, Guid playerId)
     {
+        var roomExists = await _db.Rooms.AnyAsync(r => r.Id == roomId);
+        if (!roomExists)
+            throw new HubException("Комната больше не существует. Вернитесь в лобби.");
+
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId);
-        if (player is null || player.RoomId != roomId)
-            throw new HubException("Игрок не найден в этой комнате.");
+        if (player is null)
+            throw new HubException("Игрок не найден. Вернитесь в лобби.");
+
+        if (player.RoomId != roomId)
+            throw new HubException("Игрок не в этой комнате. Вернитесь в лобби.");
 
         player.ConnectionId = Context.ConnectionId;
         player.IsConnected = true;
         await _db.SaveChangesAsync();
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(roomId));
-        _logger.LogInformation("Connection {conn} → партия {room} как {role}",
+        _logger.LogInformation(
+            "Connection {conn} → партия {room} как {role}",
             Context.ConnectionId, roomId, player.Role);
 
         object dto = player.Role == PlayerRole.Spymaster

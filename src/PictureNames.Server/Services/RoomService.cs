@@ -140,16 +140,26 @@ public class RoomService
 
         if (teamColor is null)
         {
+            // Выход из команды
             player.TeamId = null;
             player.Role = PlayerRole.Operative;
+
+            foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
+                t.SpymasterId = null;
         }
         else
         {
             var team = room.Teams.First(t => t.Color == teamColor.Value);
             player.TeamId = team.Id;
 
+            // Если был спаймастером — снимаем с команды
             foreach (var t in room.Teams.Where(t => t.SpymasterId == playerId))
                 t.SpymasterId = null;
+
+            // Смена команды или выход из зрителей — всегда оперативник.
+            // Спаймастер назначается отдельным вызовом AssignRoleAsync.
+            if (player.Role != PlayerRole.Operative)
+                player.Role = PlayerRole.Operative;
         }
 
         await _db.SaveChangesAsync(ct);

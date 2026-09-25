@@ -52,18 +52,19 @@
 			background: rgba(0,0,0,0.25); border-radius: 6px;
 			margin-bottom: 0.3rem; font-size: 14px;
 			}
-			.member button {
-			padding: 0.25rem 0.6rem; font-size: 12px;
-			}
-			.lobby-actions {
-			display: flex; gap: 0.5rem; margin-top: 1.5rem;
-			}
+			.member button { padding: 0.25rem 0.6rem; font-size: 12px; }
+			.lobby-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
 			.lobby-actions > * { flex: 1; }
 			.error { color: #ff8a8a; font-size: 14px; min-height: 1.2rem; margin-top: 0.5rem; }
 			.status { font-size: 12px; color: #6a6a72; margin-top: 0.5rem; text-align: center; }
 			.empty { color: #6a6a72; font-size: 13px; font-style: italic; }
 			.seal { font-family: monospace; font-size: 11px; color: #4a4a52;
 			margin-top: 1.5rem; text-align: center; white-space: pre; }
+			#btn-return-to-game {
+			margin-bottom: 1rem; width: 100%;
+			background: #1a3a1a; border-color: #2e5a2e; color: #9ae09a;
+			}
+			#btn-return-to-game:hover { background: #234a23; }
 		</style>
 	</head>
 	<body>
@@ -82,6 +83,7 @@
 				<h1>
 					Лобби <span class="code-display" id="room-code"></span>
 				</h1>
+				<button id="btn-return-to-game" style="display: none;">← Вернуться в партию</button>
 
 				<div class="team-block Blue">
 					<h3>Синие</h3>
@@ -108,9 +110,20 @@
 
 		<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 		<script>
-			const state = { connection: null, roomId: null, myPlayerId: null, lobby: null };
+			// STAY = "я тут сознательно, не выкидывай меня в игру"
+			// Устанавливается, когда игрок нажал "Выйти" из game.html.
+			const STAY = new URLSearchParams(window.location.search).get('stay') === '1';
+
+			const state = {
+			connection: null,
+			roomId: null,
+			myPlayerId: null,
+			myNickname: null,
+			lobby: null,
+			};
 			const $ = id => document.getElementById(id);
 
+			// === HTTP ===
 			async function post(url, body) {
 			const resp = await fetch(url, {
 			method: 'POST',
@@ -124,59 +137,104 @@
 			return resp.json();
 			}
 
+			async function get(url) {
+			const resp = await fetch(url);
+			if (!resp.ok) {
+			const err = await resp.json().catch(() => ({}));
+			throw new Error(err.error || `HTTP ${resp.status}`);
+			}
+			return resp.json();
+			}
+
+			// === Поиск себя ===
 			function findMe(lobby) {
-			return lobby.players.find(p => p.id === state.myPlayerId);
+			if (!lobby || !lobby.players) return null;
+			if (state.myPlayerId) {
+			const byId = lobby.players.find(p => p.id === state.myPlayerId);
+			if (byId) return byId;
+			}
+			if (state.myNickname) {
+			const byNick = lobby.players.find(p => p.nickname === state.myNickname);
+			if (byNick) {
+			state.myPlayerId = byNick.id;
+			return byNick;
+			}
+			}
+			return null;
 			}
 
-			async function enterLobby(lobby) {
-			state.roomId = lobby.roomId;
-			state.lobby = lobby;
-
-			// Если партия уже идёт или закончилась — сразу на игровой экран
-			if (lobby.state === 'InGame' || lobby.state === 'Finished') {
-			let meId = state.myPlayerId;
-			if (!meId) {
-			const me = lobby.players.find(p => p.nickname === $('nick').value.trim());
-			meId = me?.id;
-			}
-			if (meId) {
-			state.myPlayerId = meId;
-			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${meId}`;
-			return;
-			}
+			// === Стоит ли уходить в игру ===
+			function shouldRedirectToGame(lobby) {
+			if (STAY) return false;
+			const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
+			if (!inGame) return false;
+			const me = findMe(lobby);
+			return me && me.role !== 'Spectator' && me.teamId;
 			}
 
-			$('screen-enter').hidden = true;
-			$('screen-lobby').hidden = false;
-			render(lobby);
+			// === Единственное соединение за жизнь страницы ===
+			async function ensureConnection() {
+			if (state.connection) return state.connection;
 
 			const conn = new signalR.HubConnectionBuilder()
 			.withUrl('/gamehub')
 			.withAutomaticReconnect()
 			.build();
 
-			conn.on('LobbyUpdated', l => {
-			state.lobby = l;
-			if (l.state === 'InGame' || l.state === 'Finished') {
-			window.location.href = `/game.html?roomId=${l.roomId}&playerId=${state.myPlayerId}`;
-			return;
-			}
-			render(l);
-			});
-
+			conn.on('LobbyUpdated', handleLobbyUpdated);
 			conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
 			conn.onreconnected(async () => {
 			$('status').textContent = 'Подключено';
-			await conn.invoke('JoinRoom', state.roomId);
+			try {
+			await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
+			} catch (e) {
+			console.error('[reconnect JoinRoom]', e);
+			}
 			});
 			conn.onclose(() => $('status').textContent = 'Соединение закрыто');
 
 			await conn.start();
-			await conn.invoke('JoinRoom', state.roomId);
 			state.connection = conn;
+			return conn;
+			}
+
+			function handleLobbyUpdated(lobby) {
+			state.lobby = lobby;
+
+			if (shouldRedirectToGame(lobby)) {
+			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${state.myPlayerId}`;
+			return;
+			}
+			render(lobby);
+			}
+
+			// === Вход в лобби ===
+			async function enterLobby(lobby) {
+			state.roomId = lobby.roomId;
+			state.lobby = lobby;
+
+			// Может, сразу в игру?
+			if (shouldRedirectToGame(lobby)) {
+			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${state.myPlayerId}`;
+			return;
+			}
+
+			$('screen-enter').hidden = true;
+			$('screen-lobby').hidden = false;
+			render(lobby);
+
+			const conn = await ensureConnection();
+			try {
+			await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
+			} catch (e) {
+			console.error('[JoinRoom]', e);
+			$('lobby-error').textContent = 'Не удалось подключиться к комнате.';
+			}
+
 			$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
 			}
 
+			// === Отрисовка ===
 			function render(lobby) {
 			$('room-code').textContent = lobby.code;
 
@@ -189,13 +247,20 @@
 			if (orphans.length === 0) {
 			none.innerHTML = '<div class="empty">Пусто</div>';
 			} else {
-			for (const p of orphans) {
-			none.appendChild(makeMember(p, lobby, 'none'));
-			}
+			for (const p of orphans) none.appendChild(makeMember(p, lobby, 'none'));
 			}
 
 			const me = findMe(lobby);
-			$('btn-start').hidden = !(me && me.isHost);
+			const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
+
+			const returnBtn = $('btn-return-to-game');
+			if (inGame && me && me.role !== 'Spectator' && me.teamId) {
+			returnBtn.style.display = 'block';
+			} else {
+			returnBtn.style.display = 'none';
+			}
+
+			$('btn-start').hidden = !(me && me.isHost) || inGame;
 			$('btn-start').disabled = !canStart(lobby);
 			}
 
@@ -217,9 +282,7 @@
                 container.innerHTML = '<div class="empty">Пусто</div>';
 			return;
 			}
-			for (const p of members) {
-			container.appendChild(makeMember(p, lobby, color));
-			}
+			for (const p of members) container.appendChild(makeMember(p, lobby, color));
 			}
 
 			function makeMember(player, lobby, currentTeam) {
@@ -230,7 +293,8 @@
 			const crown = player.isHost ? ' 👑' : '';
 			const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер'
 			: (player.role === 'Spectator' ? ' · Зритель' : '');
-			left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}</span>`;
+			const offline = player.isConnected ? '' : ' · offline';
+			left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}${offline}</span>`;
 			div.appendChild(left);
 
 			const me = findMe(lobby);
@@ -276,23 +340,22 @@
 			async function assignTeam(teamColor) {
 			$('lobby-error').textContent = '';
 			try {
-			await post(`/api/rooms/${state.roomId}/team`, { playerId: state.myPlayerId, teamColor });
+			await post(`/api/rooms/${state.roomId}/team`, {
+			playerId: state.myPlayerId,
+			teamColor
+			});
 			} catch (e) { $('lobby-error').textContent = e.message; }
 			}
 
 			async function assignRole(role) {
 			$('lobby-error').textContent = '';
 			try {
-			await post(`/api/rooms/${state.roomId}/role`, { playerId: state.myPlayerId, role });
+			await post(`/api/rooms/${state.roomId}/role`, {
+			playerId: state.myPlayerId,
+			role
+			});
 			} catch (e) { $('lobby-error').textContent = e.message; }
 			}
-
-			$('btn-start').onclick = async () => {
-			$('lobby-error').textContent = '';
-			try {
-			await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
-			} catch (e) { $('lobby-error').textContent = e.message; }
-			};
 
 			function escapeHtml(s) {
 			return String(s).replace(/[&<>"']/g, c => ({
@@ -300,13 +363,17 @@
 			}[c]));
 			}
 
+			// === Обработчики ===
 			$('btn-create').onclick = async () => {
 			$('error').textContent = '';
 			const nick = $('nick').value.trim();
-			if (!nick) return $('error').textContent = 'Введи ник';
+			if (!nick) { $('error').textContent = 'Введи ник'; return; }
 			try {
 			const lobby = await post('/api/rooms', { nickname: nick });
-			state.myPlayerId = lobby.players.find(p => p.nickname === nick).id;
+			const me = lobby.players.find(p => p.nickname === nick);
+			if (!me) throw new Error('Не нашли себя в списке игроков.');
+			state.myPlayerId = me.id;
+			state.myNickname = nick;
 			await enterLobby(lobby);
 			} catch (e) { $('error').textContent = e.message; }
 			};
@@ -315,41 +382,69 @@
 			$('error').textContent = '';
 			const nick = $('nick').value.trim();
 			const code = $('code').value.trim().toUpperCase();
-			if (!nick) return $('error').textContent = 'Введи ник';
-			if (!code) return $('error').textContent = 'Введи код';
+			if (!nick) { $('error').textContent = 'Введи ник'; return; }
+			if (!code) { $('error').textContent = 'Введи код'; return; }
 			try {
 			const lobby = await post(`/api/rooms/${code}/join`, { nickname: nick });
-			state.myPlayerId = lobby.players.find(p => p.nickname === nick).id;
+			const me = lobby.players.find(p => p.nickname === nick);
+			if (!me) throw new Error('Не нашли себя в списке игроков.');
+			state.myPlayerId = me.id;
+			state.myNickname = nick;
 			await enterLobby(lobby);
 			} catch (e) { $('error').textContent = e.message; }
 			};
 
-			// === Авто-восстановление сессии из URL ===
-			// Если пришли из game.html (после реванша или выхода из партии),
-			// сразу показываем лобби нужной комнаты без экрана входа.
-			window.addEventListener('DOMContentLoaded', async () => {
+			$('btn-start').onclick = async () => {
+			$('lobby-error').textContent = '';
+			try {
+			await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
+			} catch (e) { $('lobby-error').textContent = e.message; }
+			};
+
+			$('btn-return-to-game').onclick = () => {
+			window.location.href = `/game.html?roomId=${state.roomId}&playerId=${state.myPlayerId}`;
+			};
+
+			// === Init — восстановление из URL ===
+			async function init() {
 			const params = new URLSearchParams(window.location.search);
 			const urlRoomId = params.get('roomId');
 			const urlPlayerId = params.get('playerId');
 
-			if (!urlRoomId || !urlPlayerId) return;
+			if (!urlRoomId) return;
 
 			try {
-			const resp = await fetch(`/api/rooms/${urlRoomId}`);
-			if (!resp.ok) {
-			// Комната исчезла — чистим URL и оставляем экран входа
-			window.history.replaceState({}, '', '/lobby.html');
+			const lobby = await get(`/api/rooms/${urlRoomId}`);
+
+			// Восстанавливаем себя: по ID из URL, потом по нику
+			if (urlPlayerId) {
+			const byId = lobby.players.find(p => p.id === urlPlayerId);
+			if (byId) {
+			state.myPlayerId = byId.id;
+			state.myNickname = byId.nickname;
+			await enterLobby(lobby);
 			return;
 			}
-			const lobby = await resp.json();
+			}
 
-			state.myPlayerId = urlPlayerId;
+			const nick = $('nick').value.trim();
+			const byNick = lobby.players.find(p => p.nickname === nick);
+			if (byNick) {
+			state.myPlayerId = byNick.id;
+			state.myNickname = byNick.nickname;
 			await enterLobby(lobby);
+			return;
+			}
+
+			// Не нашли себя — чистый URL, экран входа
+			window.history.replaceState({}, '', '/lobby.html');
 			} catch (e) {
-			$('error').textContent = 'Не удалось восстановить сессию: ' + e.message;
+			console.warn('[init]', e);
 			window.history.replaceState({}, '', '/lobby.html');
 			}
-			});
+			}
+
+			init();
 		</script>
 	</body>
 </html>

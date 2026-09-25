@@ -3,16 +3,16 @@ using PictureNames.Server.Data;
 
 namespace PictureNames.Server.Services;
 
-// Фоновый сервис: раз в 2 минуты убирает комнаты, где никто не онлайн
-// и комната создана больше 10 минут назад. Игроки, которые просто F5,
-// успеют вернуться до того, как комнату удалят.
+// Фоновый сервис: раз в 15 минут убирает комнаты, где никто не онлайн
+// и комната создана больше суток назад.
+// 24 часа — с запасом, чтобы F5, перерыв, ночной сон не выбрасывали игроков.
 public class RoomCleanupService : BackgroundService
 {
     private readonly IServiceProvider _sp;
     private readonly ILogger<RoomCleanupService> _logger;
 
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan MinRoomAge = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan MinRoomAge = TimeSpan.FromHours(24);
 
     public RoomCleanupService(IServiceProvider sp, ILogger<RoomCleanupService> logger)
     {
