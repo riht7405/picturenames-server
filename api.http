@@ -1,10 +1,19 @@
 ### Переменные окружения
+@host = http://localhost:5165
 @contentType = application/json
 
+### ============================================================
 ### Проверка, что сервер жив
-GET {{host}}/weatherforecast
+### ============================================================
 
-### Создать комнату — riht становится хостом
+GET {{host}}/weatherfocast
+
+
+### ============================================================
+### ШАГ 1. Создать комнату
+### Выполни ОДИН РАЗ. Скопируй из ответа: roomId, code, players[0].id
+### ============================================================
+
 # @name createRoom
 POST {{host}}/api/rooms
 Content-Type: {{contentType}}
@@ -13,17 +22,165 @@ Content-Type: {{contentType}}
   "nickname": "riht"
 }
 
-### Сохраняем код и ID из ответа в переменные
-@roomCode = {{createRoom.response.body.$.code}}
-@roomId = {{createRoom.response.body.$.roomId}}
 
-### Войти вторым игроком — bro
-POST {{host}}/api/rooms/{{roomCode}}/join
+### ============================================================
+### ШАГ 2. Войти тремя игроками
+### Выполняй по одному. После каждого копируй players[N].id
+### В URL подставь КОД из шага 1
+### ============================================================
+
+# @name joinBro
+POST {{host}}/api/rooms/J43V/join
 Content-Type: {{contentType}}
 
 {
   "nickname": "bro"
 }
 
-### Получить текущее состояние лобби
-GET {{host}}/api/rooms/{{roomId}}
+###
+# @name joinDanil
+POST {{host}}/api/rooms/J43V/join
+Content-Type: {{contentType}}
+
+{
+  "nickname": "danil"
+}
+
+###
+# @name joinVadim
+POST {{host}}/api/rooms/J43V/join
+Content-Type: {{contentType}}
+
+{
+  "nickname": "vadim"
+}
+
+
+### ============================================================
+### ШАГ 3. Получить состояние лобби
+### Замени URL на roomId. Скопируй ID всех игроков
+### ============================================================
+
+GET {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3
+
+
+### ============================================================
+### ШАГ 4. Распределение по командам
+### playerId скопируй из шага 3
+### ============================================================
+
+### riht → Blue
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/team
+Content-Type: {{contentType}}
+
+{
+  "playerId": "2d6cc5d1-49f4-47e1-8c94-23a6ca02ed60",
+  "teamColor": "Blue"
+}
+
+### bro → Blue
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/team
+Content-Type: {{contentType}}
+
+{
+  "playerId": "7c6a7297-031f-42c3-985a-d231caa3ad20",
+  "teamColor": "Blue"
+}
+
+### danil → Red
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/team
+Content-Type: {{contentType}}
+
+{
+  "playerId": "08db3198-d7ba-42b5-aefc-f6fba7e193d9",
+  "teamColor": "Red"
+}
+
+### vadim → Red
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/team
+Content-Type: {{contentType}}
+
+{
+  "playerId": "3f2a74e2-baff-472d-bb1b-50305d983b4e",
+  "teamColor": "Red"
+}
+
+
+### ============================================================
+### ШАГ 5. Назначить спаймастеров
+### ============================================================
+
+### riht → Spymaster (Blue)
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/role
+Content-Type: {{contentType}}
+
+{
+  "playerId": "2d6cc5d1-49f4-47e1-8c94-23a6ca02ed60",
+  "role": "Spymaster"
+}
+
+### danil → Spymaster (Red)
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/role
+Content-Type: {{contentType}}
+
+{
+  "playerId": "08db3198-d7ba-42b5-aefc-f6fba7e193d9",
+  "role": "Spymaster"
+}
+
+
+### ============================================================
+### ШАГ 6. Старт игры
+### ============================================================
+
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/start
+Content-Type: {{contentType}}
+
+{
+  "playerId": "2d6cc5d1-49f4-47e1-8c94-23a6ca02ed60"
+}
+
+
+### ============================================================
+### ШАГ 7. Состояние партии — для спаймастера
+### Здесь увидишь цвета всех карт
+### ============================================================
+
+GET {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/game/2d6cc5d1-49f4-47e1-8c94-23a6ca02ed60
+
+### Для оперативника Blue
+GET {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/game/7c6a7297-031f-42c3-985a-d231caa3ad20
+
+### Для спаймастера Red
+GET {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/game/08db3198-d7ba-42b5-aefc-f6fba7e193d9
+
+### Для оперативника Red
+GET {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/game/3f2a74e2-baff-472d-bb1b-50305d983b4e
+
+
+### ============================================================
+### ШАГ 8. Подсказка от спаймастера
+### ============================================================
+
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/clue
+Content-Type: {{contentType}}
+
+{
+  "playerId": "08db3198-d7ba-42b5-aefc-f6fba7e193d9",
+  "word": "океан",
+  "number": 2
+}
+
+
+### ============================================================
+### ШАГ 9. Открыть карту оперативником
+### cardId — из ответа шага 7 (cards[0].id)
+### ============================================================
+
+POST {{host}}/api/rooms/7c0a3022-cc89-4009-a9c2-cd46474fc9d3/reveal
+Content-Type: {{contentType}}
+
+{
+  "playerId": "3f2a74e2-baff-472d-bb1b-50305d983b4e",
+  "cardId": "8de9c3b6-4078-4f63-a0c5-104fb02c2295"
+}

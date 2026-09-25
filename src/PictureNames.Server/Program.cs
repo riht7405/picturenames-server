@@ -170,4 +170,28 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// === REST для отладки ходов (SignalR-путь будет параллельно) ===
+
+app.MapPost("/api/rooms/{roomId:guid}/clue", async (
+    Guid roomId, GiveClueRequest req, GameService game, CancellationToken ct) =>
+{
+    try
+    {
+        await game.GiveClueAsync(roomId, req.PlayerId, req.Word, req.Number, ct);
+        return Results.Ok(new { ok = true });
+    }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+app.MapPost("/api/rooms/{roomId:guid}/reveal", async (
+    Guid roomId, RevealCardRequest req, GameService game, CancellationToken ct) =>
+{
+    try
+    {
+        var outcome = await game.RevealCardAsync(roomId, req.PlayerId, req.CardId, ct);
+        return Results.Ok(new { outcome = outcome.ToString() });
+    }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 app.Run();

@@ -2,36 +2,39 @@
 
 namespace PictureNames.Server.Services.Dto;
 
-// Запрос: назначить игрока в команду (teamColor = null → выйти из команды)
+// === Лобби (используется RoomService) ===
 public record AssignTeamRequest(Guid PlayerId, TeamColor? TeamColor);
-
-// Запрос: сменить роль
 public record AssignRoleRequest(Guid PlayerId, PlayerRole Role);
-
-// Запрос: старт игры (только хост)
 public record StartGameRequest(Guid PlayerId);
 
-// Карта для спаймастера — с цветом
+// === Партия ===
+public record GiveClueRequest(Guid PlayerId, string Word, int Number);
+public record RevealCardRequest(Guid PlayerId, Guid CardId);
+
+public enum RevealOutcome
+{
+    Correct,     // своя карта
+    WrongTeam,   // чужая карта
+    Neutral,     // нейтральная
+    Assassin,    // ассасин — мгновенный конец
+    Ignored      // не должен был происходить
+}
+
+// Текущая подсказка (id текущей команды + слово + число)
+public record ClueDto(string Word, int Number, TeamColor Team);
+
+// === Карты ===
 public record CardForSpymasterDto(
-    Guid Id,
-    int Position,
-    string ImageUrl,
-    string? AltText,
-    CardColor Color,
-    bool IsRevealed
+    Guid Id, int Position, string ImageUrl, string? AltText,
+    CardColor Color, bool IsRevealed
 );
 
-// Карта для оперативника — БЕЗ цвета, если не открыта
 public record CardForOperativeDto(
-    Guid Id,
-    int Position,
-    string ImageUrl,
-    string? AltText,
-    CardColor? Color,   // null, если IsRevealed = false
-    bool IsRevealed
+    Guid Id, int Position, string ImageUrl, string? AltText,
+    CardColor? Color, bool IsRevealed
 );
 
-// Полное состояние партии — для оперативника
+// === Полное состояние партии ===
 public record GameStateForOperativeDto(
     Guid RoomId,
     string Code,
@@ -39,11 +42,13 @@ public record GameStateForOperativeDto(
     TeamColor? CurrentTurnTeam,
     TeamColor? YourTeam,
     PlayerRole YourRole,
+    ClueDto? CurrentClue,
+    int GuessesMade,
+    int GuessesAllowed,
     IReadOnlyList<CardForOperativeDto> Cards,
     IReadOnlyList<TeamDto> Teams
 );
 
-// Полное состояние партии — для спаймастера
 public record GameStateForSpymasterDto(
     Guid RoomId,
     string Code,
@@ -51,6 +56,9 @@ public record GameStateForSpymasterDto(
     TeamColor? CurrentTurnTeam,
     TeamColor? YourTeam,
     PlayerRole YourRole,
+    ClueDto? CurrentClue,
+    int GuessesMade,
+    int GuessesAllowed,
     IReadOnlyList<CardForSpymasterDto> Cards,
     IReadOnlyList<TeamDto> Teams
 );
