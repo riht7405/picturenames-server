@@ -60,6 +60,11 @@
         .empty { color: #6a6a72; font-size: 13px; font-style: italic; }
         .seal { font-family: monospace; font-size: 11px; color: #4a4a52;
                 margin-top: 1.5rem; text-align: center; white-space: pre; }
+        #btn-return-to-game {
+            margin-bottom: 1rem; width: 100%;
+            background: #1a3a1a; border-color: #2e5a2e; color: #9ae09a;
+        }
+        #btn-return-to-game:hover { background: #234a23; }
     </style>
 </head>
 <body>
@@ -76,6 +81,7 @@
 
         <div id="screen-lobby" hidden>
             <h1>Лобби <span class="code-display" id="room-code"></span></h1>
+            <button id="btn-return-to-game" style="display: none;">← Вернуться в партию</button>
 
             <div class="team-block Blue">
                 <h3>Синие</h3>
@@ -102,12 +108,17 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
     <script>
+        // STAY = "я вернулся в лобби осознанно, не выкидывай меня в игру автоматически,
+        //         если партия УЖЕ идёт". Но если партия НАЧИНАЕТСЯ заново — идём все.
+        const STAY = new URLSearchParams(window.location.search).get('stay') === '1';
+
         const state = {
             connection: null,
             roomId: null,
             myPlayerId: null,
             myNickname: null,
             lobby: null,
+            previousState: null,   // <-- запоминаем предыдущий state комнаты
         };
         const $ = id => document.getElementById(id);
 
@@ -125,7 +136,7 @@
         }
 
         async function get(url) {
-            const resp = await fetch(url);
+            const resp = await fetch(url, { cache: 'no-store' });
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
                 throw new Error(err.error || `HTTP ${resp.status}`);
@@ -149,53 +160,76 @@
             return null;
         }
 
+        // Куда идти в игру
+        function goToGame(lobby) {
+            const me = findMe(lobby);
+            if (!me) return false;
+            window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${me.id}`;
+            return true;
+        }
+
+        // Единственное соединение
+        async function ensureConnection() {
+            if (state.connection) return state.connection;
+
+            const conn = new signalR.HubConnectionBuilder()
+                .withUrl('/gamehub')
+                .withAutomaticReconnect()
+                .build();
+
+            conn.on('LobbyUpdated', l => {
+                const prev = state.previousState;
+                state.previousState = l.state;
+                state.lobby = l;
+
+                // Ключевое правило:
+                // Переход Lobby → InGame|Finished — это НАЧАЛО НОВОЙ ПАРТИИ. Все идут в игру.
+                // Состояние InGame|Finished при загрузке — не редиректим (игрок осознанно в лобби).
+                const gameStarted = (prev === 'Lobby')
+                    && (l.state === 'InGame' || l.state === 'Finished');
+
+                if (gameStarted) {
+                    goToGame(l);
+                    return;
+                }
+
+                render(l);
+            });
+
+            conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
+            conn.onreconnected(async () => {
+                $('status').textContent = 'Подключено';
+                try {
+                    await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
+                } catch (e) {
+                    console.error('JoinRoom failed', e);
+                }
+            });
+            conn.onclose(() => $('status').textContent = 'Соединение закрыто');
+
+            await conn.start();
+            state.connection = conn;
+            return conn;
+        }
+
         async function enterLobby(lobby) {
             state.roomId = lobby.roomId;
             state.lobby = lobby;
+            // При первичной загрузке "предыдущее" состояние = текущее
+            if (state.previousState === null) state.previousState = lobby.state;
 
             $('screen-enter').hidden = true;
             $('screen-lobby').hidden = false;
             render(lobby);
 
-            // Одно соединение на жизнь страницы
-            if (!state.connection) {
-                const conn = new signalR.HubConnectionBuilder()
-                    .withUrl('/gamehub')
-                    .withAutomaticReconnect()
-                    .build();
-
-                conn.on('LobbyUpdated', l => {
-                    state.lobby = l;
-                    if (l.state === 'InGame' || l.state === 'Finished') {
-                        window.location.href = `/game.html?roomId=${l.roomId}&playerId=${state.myPlayerId}`;
-                        return;
-                    }
-                    render(l);
-                });
-
-                conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
-                conn.onreconnected(async () => {
-                    $('status').textContent = 'Подключено';
-                    try {
-                        await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
-                    } catch (e) {
-                        console.error('JoinRoom failed', e);
-                    }
-                });
-                conn.onclose(() => $('status').textContent = 'Соединение закрыто');
-
-                await conn.start();
-                state.connection = conn;
-            }
-
+            const conn = await ensureConnection();
             try {
-                await state.connection.invoke('JoinRoom', state.roomId, state.myPlayerId);
+                await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
             } catch (e) {
                 console.error('[JoinRoom]', e);
                 $('lobby-error').textContent = 'Не удалось подключиться к комнате.';
             }
-
-            $('status').textContent = 'Подключено · ' + state.connection.connectionId.slice(0, 8);
+            $('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
         }
 
         function render(lobby) {
@@ -215,6 +249,14 @@
 
             const me = findMe(lobby);
             const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
+
+            // Кнопка "Вернуться в партию" — если партия идёт и я игрок
+            const returnBtn = $('btn-return-to-game');
+            if (inGame && me && me.role !== 'Spectator' && me.teamId) {
+                returnBtn.style.display = 'block';
+            } else {
+                returnBtn.style.display = 'none';
+            }
 
             $('btn-start').hidden = !(me && me.isHost) || inGame;
             $('btn-start').disabled = !canStart(lobby);
@@ -349,11 +391,19 @@
             } catch (e) { $('error').textContent = e.message; }
         };
 
+        // Просто вызываем серверный метод. Сервер сгенерирует поле, переключит state
+        // в InGame и разошлёт LobbyUpdated. Наш обработчик поймает переход
+        // Lobby → InGame и уведёт всех в game.html.
         $('btn-start').onclick = async () => {
             $('lobby-error').textContent = '';
             try {
                 await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
+                // Ничего не делаем — ждём LobbyUpdated
             } catch (e) { $('lobby-error').textContent = e.message; }
+        };
+
+        $('btn-return-to-game').onclick = () => {
+            window.location.href = `/game.html?roomId=${state.roomId}&playerId=${state.myPlayerId}`;
         };
 
         // === Init ===
@@ -367,41 +417,37 @@
             try {
                 const lobby = await get(`/api/rooms/${urlRoomId}`);
 
-                // Пытаемся найти себя: сначала по ID из URL, потом по нику
+                let foundId = null;
+                let foundNick = null;
+
                 if (urlPlayerId) {
                     const byId = lobby.players.find(p => p.id === urlPlayerId);
-                    if (byId) {
-                        state.myPlayerId = byId.id;
-                        state.myNickname = byId.nickname;
-
-                        // Если партия идёт — сразу в игру
-                        if (lobby.state === 'InGame' || lobby.state === 'Finished') {
-                            window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${byId.id}`;
-                            return;
-                        }
-
-                        await enterLobby(lobby);
-                        return;
-                    }
+                    if (byId) { foundId = byId.id; foundNick = byId.nickname; }
                 }
 
-                const nick = $('nick').value.trim();
-                const byNick = lobby.players.find(p => p.nickname === nick);
-                if (byNick) {
-                    state.myPlayerId = byNick.id;
-                    state.myNickname = byNick.nickname;
+                if (!foundId) {
+                    const nick = $('nick').value.trim();
+                    const byNick = lobby.players.find(p => p.nickname === nick);
+                    if (byNick) { foundId = byNick.id; foundNick = byNick.nickname; }
+                }
 
-                    if (lobby.state === 'InGame' || lobby.state === 'Finished') {
-                        window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${byNick.id}`;
-                        return;
-                    }
-
-                    await enterLobby(lobby);
+                if (!foundId) {
+                    window.history.replaceState({}, '', '/lobby.html');
                     return;
                 }
 
-                // Не смогли найти себя — оставляем экран входа
-                window.history.replaceState({}, '', '/lobby.html');
+                state.myPlayerId = foundId;
+                state.myNickname = foundNick;
+                // Запоминаем, что мы пришли в "уже играющее" состояние
+                state.previousState = lobby.state;
+
+                // Если партия идёт и это НЕ перезаход через stay — сразу в игру
+                if (!STAY && (lobby.state === 'InGame' || lobby.state === 'Finished')) {
+                    goToGame(lobby);
+                    return;
+                }
+
+                await enterLobby(lobby);
             } catch (e) {
                 console.warn('[init]', e);
                 window.history.replaceState({}, '', '/lobby.html');
