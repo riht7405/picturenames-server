@@ -65,6 +65,12 @@
             background: #1a3a1a; border-color: #2e5a2e; color: #9ae09a;
         }
         #btn-return-to-game:hover { background: #234a23; }
+
+        #btn-leave-room {
+            background: #1c1c22; color: #8a8a94;
+            border-color: #2e2e38;
+        }
+        #btn-leave-room:hover { background: #26262e; color: #e8e8e8; }
     </style>
 </head>
 <body>
@@ -97,6 +103,7 @@
 
             <div class="lobby-actions">
                 <button id="btn-start" hidden>Начать игру</button>
+                <button id="btn-leave-room" class="secondary">Покинуть комнату</button>
             </div>
 
             <div class="error" id="lobby-error"></div>
@@ -217,6 +224,16 @@
             state.lobby = lobby;
             // При первичной загрузке "предыдущее" состояние = текущее
             if (state.previousState === null) state.previousState = lobby.state;
+
+            // Партия уже идёт и это НЕ перезаход со stay — сразу в игру.
+            // Это ловит случай "зритель зашёл по коду в идущую партию".
+            if (!STAY && (lobby.state === 'InGame' || lobby.state === 'Finished')) {
+                const me = findMe(lobby);
+                if (me) {
+                    window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${me.id}`;
+                    return;
+                }
+            }
 
             $('screen-enter').hidden = true;
             $('screen-lobby').hidden = false;
@@ -400,6 +417,22 @@
                 await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
                 // Ничего не делаем — ждём LobbyUpdated
             } catch (e) { $('lobby-error').textContent = e.message; }
+        };
+
+        $('btn-leave-room').onclick = async () => {
+            $('lobby-error').textContent = '';
+            try {
+                if (state.connection) {
+                    await state.connection.invoke('LeaveRoom', state.roomId, state.myPlayerId);
+                    try { await state.connection.stop(); } catch {}
+                    state.connection = null;
+                }
+                window.location.href = '/lobby.html';
+            } catch (e) {
+                // Что-то пошло не так — всё равно уходим
+                console.error('[leave room]', e);
+                window.location.href = '/lobby.html';
+            }
         };
 
         $('btn-return-to-game').onclick = () => {

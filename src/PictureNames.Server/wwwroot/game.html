@@ -292,6 +292,7 @@
         <p id="finish-sub">—</p>
         <div class="finish-buttons">
             <button id="btn-go-lobby" class="primary">В лобби</button>
+            <button id="btn-leave-room">Покинуть комнату</button>
         </div>
     </div>
 </div>
@@ -307,7 +308,8 @@
     }
 
     const $ = id => document.getElementById(id);
-    const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}`;
+    // Возврат в лобби со stay=1 — чтобы лобби не редиректило обратно в игру
+    const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
 
     const state = {
         connection: null,
@@ -322,7 +324,19 @@
         cards: [],
         teams: [],
         gameState: null,
+        lastStateHash: null,
     };
+
+    function hashState(data) {
+        return JSON.stringify({
+            s: data.state,
+            t: data.currentTurnTeam,
+            c: data.currentClue?.word,
+            n: data.currentClue?.number,
+            cs: data.cards.map(c => c.isRevealed ? 1 : 0).join(''),
+            sc: data.teams.map(t => t.score)
+        });
+    }
 
     function render(data) {
         state.myRole = data.yourRole;
@@ -515,11 +529,41 @@
         }
     }
 
+    // Запросить у сервера своё состояние и отрисовать, если что-то изменилось
+    let fetching = false;
+    async function fetchAndRenderState(force = false) {
+        if (fetching) return;
+        fetching = true;
+        try {
+            const resp = await fetch(
+                `/api/rooms/${roomId}/game/${playerId}`,
+                { cache: 'no-store' }
+            );
+            if (!resp.ok) {
+                console.warn('[fetch state] not ok', resp.status);
+                return;
+            }
+            const data = await resp.json();
+
+            const h = hashState(data);
+            if (!force && h === state.lastStateHash) return;
+            state.lastStateHash = h;
+
+            render(data);
+        } catch (e) {
+            console.error('[fetch state]', e);
+        } finally {
+            fetching = false;
+        }
+    }
+
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
     }
+
+    // === SignalR ===
 
     async function start() {
         const conn = new signalR.HubConnectionBuilder()
@@ -527,7 +571,14 @@
             .withAutomaticReconnect()
             .build();
 
-        conn.on('GameStateUpdated', data => render(data));
+        // Первичная персональная отправка при подключении
+        conn.on('GameStateUpdated', data => {
+            state.lastStateHash = hashState(data);
+            render(data);
+        });
+
+        // Пинг при изменениях — подтягиваем своё состояние через REST
+        conn.on('StateChanged', () => fetchAndRenderState());
 
         conn.on('RevealOutcome', ({ outcome }) => {
             const labels = {
@@ -540,6 +591,7 @@
             setTimeout(() => $('status').textContent = '', 3000);
         });
 
+        // Когда партия закрыта кнопкой "В лобби" — уходим в лобби
         conn.on('LobbyUpdated', lobby => {
             if (lobby.state === 'Lobby') {
                 window.location.href = lobbyUrl;
@@ -562,7 +614,13 @@
         await conn.invoke('JoinGame', roomId, playerId);
         state.connection = conn;
         $('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
+
+        // === Polling fallback: раз в 3 секунды подтягиваем состояние ===
+        // SignalR — быстрый путь, polling — страховка от протухших соединений.
+        setInterval(() => fetchAndRenderState(), 3000);
     }
+
+    // === Обработчики ===
 
     $('btn-clue').onclick = giveClue;
     $('clue-word').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
@@ -581,16 +639,30 @@
     async function goToLobby() {
         $('error').textContent = '';
         try {
-            await state.connection.invoke('Rematch', roomId, playerId);
-            // Сервер рассылает LobbyUpdated со state=Lobby → все редиректятся на lobbyUrl
+            await state.connection.invoke('ReturnToLobby', roomId, playerId);
+            // После этого сервер разошлёт LobbyUpdated → редирект сработает сам
         } catch (e) {
-            // Если не получилось — уходим вручную
+            // Если что-то не так — уходим вручную
             window.location.href = lobbyUrl;
         }
     }
 
     $('btn-exit').onclick = goToLobby;
     $('btn-go-lobby').onclick = goToLobby;
+
+    // Покинуть комнату полностью
+    async function leaveRoomCompletely() {
+        $('error').textContent = '';
+        try {
+            await state.connection.invoke('LeaveRoom', roomId, playerId);
+        } catch (e) {
+            console.error('[leave room]', e);
+        }
+        try { await state.connection.stop(); } catch {}
+        window.location.href = '/lobby.html';
+    }
+
+    $('btn-leave-room').onclick = leaveRoomCompletely;
 
     start().catch(err => {
         $('status').textContent = 'Ошибка';
