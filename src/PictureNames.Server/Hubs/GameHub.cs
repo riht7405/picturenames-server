@@ -169,12 +169,21 @@ public class GameHub : Hub
     }
 
     public async Task Rematch(Guid roomId, Guid playerId)
-    {
-        await _game.ResetToLobbyAsync(roomId, playerId);
+{
+    var started = await _game.RematchAsync(roomId, playerId);
 
+    if (started)
+    {
+        // Все сразу в новой партии
+        await BroadcastGameStateAsync(roomId);
+    }
+    else
+    {
+        // Не хватило игроков — возвращаем в лобби, там доберут состав
         var lobby = await _rooms.GetLobbyAsync(roomId);
         await Clients.Group(RoomGroup(roomId)).SendAsync("LobbyUpdated", lobby);
     }
+}
 
     public async Task SendMessage(string nickname, string text)
     {

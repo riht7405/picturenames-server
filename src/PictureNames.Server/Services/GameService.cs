@@ -246,43 +246,64 @@ public class GameService
 
     // === Реванш ===
 
-    public async Task ResetToLobbyAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
+    // Реванш: сбрасывает счёт и карты. Если составы полны — сразу генерирует новое поле.
+// Возвращает true, если новая партия сразу стартовала; false — если перешли в лобби.
+// Хост не требуется — любой игрок в комнате может запустить реванш.
+public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
+{
+    var room = await _db.Rooms
+        .Include(r => r.Teams)
+        .Include(r => r.Players)
+        .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+        ?? throw new InvalidOperationException("Комната не найдена.");
+
+    var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+        ?? throw new InvalidOperationException("Игрок не найден.");
+
+    // Сбрасываем карты
+    var cards = _db.Cards.Where(c => c.RoomId == roomId);
+    _db.Cards.RemoveRange(cards);
+
+    // Сбрасываем счёт и подсказки
+    foreach (var t in room.Teams)
+        t.Score = 0;
+
+    room.State = RoomState.Lobby;
+    room.CurrentTurnTeamId = null;
+    room.GuessCount = 0;
+    room.GuessesAllowed = 0;
+    room.ClueWord = null;
+    room.ClueNumber = null;
+    room.ClueTeamId = null;
+
+    // Spectator → Operative (новая партия, все играют)
+    foreach (var p in room.Players)
     {
-        var room = await _db.Rooms
-            .Include(r => r.Teams)
-            .Include(r => r.Players)
-            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
-            ?? throw new InvalidOperationException("Комната не найдена.");
-
-        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
-            ?? throw new InvalidOperationException("Игрок не найден.");
-
-        if (!player.IsHost)
-            throw new InvalidOperationException("Только хост может запустить реванш.");
-
-        var cards = _db.Cards.Where(c => c.RoomId == roomId);
-        _db.Cards.RemoveRange(cards);
-
-        foreach (var t in room.Teams)
-            t.Score = 0;
-
-        room.State = RoomState.Lobby;
-        room.CurrentTurnTeamId = null;
-        room.GuessCount = 0;
-        room.GuessesAllowed = 0;
-        room.ClueWord = null;
-        room.ClueNumber = null;
-        room.ClueTeamId = null;
-
-        // Spectator → Operative (новая партия, все играют)
-        foreach (var p in room.Players)
-        {
-            if (p.Role == PlayerRole.Spectator)
-                p.Role = PlayerRole.Operative;
-        }
-
-        await _db.SaveChangesAsync(ct);
+        if (p.Role == PlayerRole.Spectator)
+            p.Role = PlayerRole.Operative;
     }
+
+    await _db.SaveChangesAsync(ct);
+
+    // Проверяем готовность: в каждой команде 2+ игрока и есть спаймастер
+    var canStart = true;
+    foreach (var team in room.Teams)
+    {
+        var members = room.Players.Where(p => p.TeamId == team.Id).ToList();
+        if (members.Count < 2 || team.SpymasterId is null)
+        {
+            canStart = false;
+            break;
+        }
+    }
+
+    if (!canStart)
+        return false;
+
+    // Сразу генерируем новое поле
+    await GenerateFieldAsync(roomId, ct);
+    return true;
+}
 
     // === Сборка состояния ===
 
