@@ -1,273 +1,229 @@
 <!DOCTYPE html>
 <html lang="ru">
-	<head>
-		<meta charset="utf-8" />
-		<title>PictureNames · Лобби</title>
-		<style>
-			* { box-sizing: border-box; }
-			body {
-			font-family: system-ui, sans-serif;
-			background: #0f0f12; color: #e8e8e8;
-			display: grid; place-items: center;
-			min-height: 100vh; margin: 0; padding: 2rem;
-			}
-			.card {
-			width: 640px; padding: 2rem;
-			background: #17171c; border-radius: 12px;
-			border: 1px solid #26262e;
-			}
-			h1 { font-weight: 300; margin: 0 0 1rem; letter-spacing: 0.05em; }
-			h2 { font-weight: 400; font-size: 13px; color: #8a8a94;
-			margin: 1.5rem 0 0.5rem; text-transform: uppercase;
-			letter-spacing: 0.08em; }
-			input, button {
-			font: inherit; padding: 0.6rem 0.8rem;
-			background: #0f0f12; color: #e8e8e8;
-			border: 1px solid #2e2e38; border-radius: 6px;
-			}
-			input { width: 100%; margin-bottom: 0.5rem; }
-			button { cursor: pointer; background: #2a2a36; }
-			button:hover:not(:disabled) { background: #353542; }
-			button:disabled { opacity: 0.4; cursor: not-allowed; }
-			.code-display {
-			font-family: monospace; font-size: 18px;
-			letter-spacing: 0.3em; color: #7ab8ff;
-			}
-			.team-block {
-			padding: 1rem; border-radius: 8px;
-			margin-bottom: 0.8rem;
-			}
-			.team-block.Blue { background: #14243d; }
-			.team-block.Red { background: #3d1616; }
-			.team-block h3 {
-			margin: 0 0 0.6rem; font-weight: 400;
-			font-size: 13px; letter-spacing: 0.08em;
-			text-transform: uppercase;
-			}
-			.team-block.Blue h3 { color: #7ab8ff; }
-			.team-block.Red h3 { color: #ff9a9a; }
-			.member {
-			display: flex; justify-content: space-between;
-			align-items: center; padding: 0.4rem 0.6rem;
-			background: rgba(0,0,0,0.25); border-radius: 6px;
-			margin-bottom: 0.3rem; font-size: 14px;
-			}
-			.member button { padding: 0.25rem 0.6rem; font-size: 12px; }
-			.lobby-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
-			.lobby-actions > * { flex: 1; }
-			.error { color: #ff8a8a; font-size: 14px; min-height: 1.2rem; margin-top: 0.5rem; }
-			.status { font-size: 12px; color: #6a6a72; margin-top: 0.5rem; text-align: center; }
-			.empty { color: #6a6a72; font-size: 13px; font-style: italic; }
-			.seal { font-family: monospace; font-size: 11px; color: #4a4a52;
-			margin-top: 1.5rem; text-align: center; white-space: pre; }
-			#btn-return-to-game {
-			margin-bottom: 1rem; width: 100%;
-			background: #1a3a1a; border-color: #2e5a2e; color: #9ae09a;
-			}
-			#btn-return-to-game:hover { background: #234a23; }
-		</style>
-	</head>
-	<body>
-		<div class="card">
-			<div id="screen-enter">
-				<h1>PictureNames</h1>
-				<input id="nick" placeholder="Твой ник" value="riht" />
-				<button id="btn-create">Создать комнату</button>
-				<div style="text-align:center;color:#6a6a72;font-size:12px;margin:0.8rem 0;">или</div>
-				<input id="code" placeholder="Код комнаты" maxlength="4" style="text-transform: uppercase;" />
-				<button id="btn-join">Войти по коду</button>
-				<div class="error" id="error"></div>
-			</div>
+<head>
+    <meta charset="utf-8" />
+    <title>PictureNames · Лобби</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f0f12; color: #e8e8e8;
+            display: grid; place-items: center;
+            min-height: 100vh; margin: 0; padding: 2rem;
+        }
+        .card {
+            width: 640px; padding: 2rem;
+            background: #17171c; border-radius: 12px;
+            border: 1px solid #26262e;
+        }
+        h1 { font-weight: 300; margin: 0 0 1rem; letter-spacing: 0.05em; }
+        h2 { font-weight: 400; font-size: 13px; color: #8a8a94;
+             margin: 1.5rem 0 0.5rem; text-transform: uppercase;
+             letter-spacing: 0.08em; }
+        input, button {
+            font: inherit; padding: 0.6rem 0.8rem;
+            background: #0f0f12; color: #e8e8e8;
+            border: 1px solid #2e2e38; border-radius: 6px;
+        }
+        input { width: 100%; margin-bottom: 0.5rem; }
+        button { cursor: pointer; background: #2a2a36; }
+        button:hover:not(:disabled) { background: #353542; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .code-display {
+            font-family: monospace; font-size: 18px;
+            letter-spacing: 0.3em; color: #7ab8ff;
+        }
+        .team-block {
+            padding: 1rem; border-radius: 8px;
+            margin-bottom: 0.8rem;
+        }
+        .team-block.Blue { background: #14243d; }
+        .team-block.Red { background: #3d1616; }
+        .team-block h3 {
+            margin: 0 0 0.6rem; font-weight: 400;
+            font-size: 13px; letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .team-block.Blue h3 { color: #7ab8ff; }
+        .team-block.Red h3 { color: #ff9a9a; }
+        .member {
+            display: flex; justify-content: space-between;
+            align-items: center; padding: 0.4rem 0.6rem;
+            background: rgba(0,0,0,0.25); border-radius: 6px;
+            margin-bottom: 0.3rem; font-size: 14px;
+        }
+        .member button { padding: 0.25rem 0.6rem; font-size: 12px; }
+        .lobby-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+        .lobby-actions > * { flex: 1; }
+        .error { color: #ff8a8a; font-size: 14px; min-height: 1.2rem; margin-top: 0.5rem; }
+        .status { font-size: 12px; color: #6a6a72; margin-top: 0.5rem; text-align: center; }
+        .empty { color: #6a6a72; font-size: 13px; font-style: italic; }
+        .seal { font-family: monospace; font-size: 11px; color: #4a4a52;
+                margin-top: 1.5rem; text-align: center; white-space: pre; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="screen-enter">
+            <h1>PictureNames</h1>
+            <input id="nick" placeholder="Твой ник" value="riht" />
+            <button id="btn-create">Создать комнату</button>
+            <div style="text-align:center;color:#6a6a72;font-size:12px;margin:0.8rem 0;">или</div>
+            <input id="code" placeholder="Код комнаты" maxlength="4" style="text-transform: uppercase;" />
+            <button id="btn-join">Войти по коду</button>
+            <div class="error" id="error"></div>
+        </div>
 
-			<div id="screen-lobby" hidden="">
-				<h1>
-					Лобби <span class="code-display" id="room-code"></span>
-				</h1>
-				<button id="btn-return-to-game" style="display: none;">← Вернуться в партию</button>
+        <div id="screen-lobby" hidden>
+            <h1>Лобби <span class="code-display" id="room-code"></span></h1>
 
-				<div class="team-block Blue">
-					<h3>Синие</h3>
-					<div id="team-Blue"></div>
-				</div>
-				<div class="team-block Red">
-					<h3>Красные</h3>
-					<div id="team-Red"></div>
-				</div>
+            <div class="team-block Blue">
+                <h3>Синие</h3>
+                <div id="team-Blue"></div>
+            </div>
+            <div class="team-block Red">
+                <h3>Красные</h3>
+                <div id="team-Red"></div>
+            </div>
 
-				<h2>Без команды</h2>
-				<div id="team-none"></div>
+            <h2>Без команды</h2>
+            <div id="team-none"></div>
 
-				<div class="lobby-actions">
-					<button id="btn-start" hidden="">Начать игру</button>
-				</div>
+            <div class="lobby-actions">
+                <button id="btn-start" hidden>Начать игру</button>
+            </div>
 
-				<div class="error" id="lobby-error"></div>
-				<div class="status" id="status">Подключение…</div>
-			</div>
+            <div class="error" id="lobby-error"></div>
+            <div class="status" id="status">Подключение…</div>
+        </div>
 
-			<div class="seal">// [riht] est via recta () => {真理} > {}</div>
-		</div>
+        <div class="seal">// [riht] est via recta () => {真理} > {}</div>
+    </div>
 
-		<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-		<script>
-			// STAY = "я тут сознательно, не выкидывай меня в игру"
-			// Устанавливается, когда игрок нажал "Выйти" из game.html.
-			const STAY = new URLSearchParams(window.location.search).get('stay') === '1';
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+        const state = {
+            connection: null,
+            roomId: null,
+            myPlayerId: null,
+            myNickname: null,
+            lobby: null,
+        };
+        const $ = id => document.getElementById(id);
 
-			const state = {
-			connection: null,
-			roomId: null,
-			myPlayerId: null,
-			myNickname: null,
-			lobby: null,
-			};
-			const $ = id => document.getElementById(id);
+        async function post(url, body) {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${resp.status}`);
+            }
+            return resp.json();
+        }
 
-			// === HTTP ===
-			async function post(url, body) {
-			const resp = await fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body)
-			});
-			if (!resp.ok) {
-			const err = await resp.json().catch(() => ({}));
-			throw new Error(err.error || `HTTP ${resp.status}`);
-			}
-			return resp.json();
-			}
+        async function get(url) {
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${resp.status}`);
+            }
+            return resp.json();
+        }
 
-			async function get(url) {
-			const resp = await fetch(url);
-			if (!resp.ok) {
-			const err = await resp.json().catch(() => ({}));
-			throw new Error(err.error || `HTTP ${resp.status}`);
-			}
-			return resp.json();
-			}
+        function findMe(lobby) {
+            if (!lobby || !lobby.players) return null;
+            if (state.myPlayerId) {
+                const byId = lobby.players.find(p => p.id === state.myPlayerId);
+                if (byId) return byId;
+            }
+            if (state.myNickname) {
+                const byNick = lobby.players.find(p => p.nickname === state.myNickname);
+                if (byNick) {
+                    state.myPlayerId = byNick.id;
+                    return byNick;
+                }
+            }
+            return null;
+        }
 
-			// === Поиск себя ===
-			function findMe(lobby) {
-			if (!lobby || !lobby.players) return null;
-			if (state.myPlayerId) {
-			const byId = lobby.players.find(p => p.id === state.myPlayerId);
-			if (byId) return byId;
-			}
-			if (state.myNickname) {
-			const byNick = lobby.players.find(p => p.nickname === state.myNickname);
-			if (byNick) {
-			state.myPlayerId = byNick.id;
-			return byNick;
-			}
-			}
-			return null;
-			}
+        async function enterLobby(lobby) {
+            state.roomId = lobby.roomId;
+            state.lobby = lobby;
 
-			// === Стоит ли уходить в игру ===
-			function shouldRedirectToGame(lobby) {
-			if (STAY) return false;
-			const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
-			if (!inGame) return false;
-			const me = findMe(lobby);
-			return me && me.role !== 'Spectator' && me.teamId;
-			}
+            $('screen-enter').hidden = true;
+            $('screen-lobby').hidden = false;
+            render(lobby);
 
-			// === Единственное соединение за жизнь страницы ===
-			async function ensureConnection() {
-			if (state.connection) return state.connection;
+            // Одно соединение на жизнь страницы
+            if (!state.connection) {
+                const conn = new signalR.HubConnectionBuilder()
+                    .withUrl('/gamehub')
+                    .withAutomaticReconnect()
+                    .build();
 
-			const conn = new signalR.HubConnectionBuilder()
-			.withUrl('/gamehub')
-			.withAutomaticReconnect()
-			.build();
+                conn.on('LobbyUpdated', l => {
+                    state.lobby = l;
+                    if (l.state === 'InGame' || l.state === 'Finished') {
+                        window.location.href = `/game.html?roomId=${l.roomId}&playerId=${state.myPlayerId}`;
+                        return;
+                    }
+                    render(l);
+                });
 
-			conn.on('LobbyUpdated', handleLobbyUpdated);
-			conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
-			conn.onreconnected(async () => {
-			$('status').textContent = 'Подключено';
-			try {
-			await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
-			} catch (e) {
-			console.error('[reconnect JoinRoom]', e);
-			}
-			});
-			conn.onclose(() => $('status').textContent = 'Соединение закрыто');
+                conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
+                conn.onreconnected(async () => {
+                    $('status').textContent = 'Подключено';
+                    try {
+                        await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
+                    } catch (e) {
+                        console.error('JoinRoom failed', e);
+                    }
+                });
+                conn.onclose(() => $('status').textContent = 'Соединение закрыто');
 
-			await conn.start();
-			state.connection = conn;
-			return conn;
-			}
+                await conn.start();
+                state.connection = conn;
+            }
 
-			function handleLobbyUpdated(lobby) {
-			state.lobby = lobby;
+            try {
+                await state.connection.invoke('JoinRoom', state.roomId, state.myPlayerId);
+            } catch (e) {
+                console.error('[JoinRoom]', e);
+                $('lobby-error').textContent = 'Не удалось подключиться к комнате.';
+            }
 
-			if (shouldRedirectToGame(lobby)) {
-			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${state.myPlayerId}`;
-			return;
-			}
-			render(lobby);
-			}
+            $('status').textContent = 'Подключено · ' + state.connection.connectionId.slice(0, 8);
+        }
 
-			// === Вход в лобби ===
-			async function enterLobby(lobby) {
-			state.roomId = lobby.roomId;
-			state.lobby = lobby;
+        function render(lobby) {
+            $('room-code').textContent = lobby.code;
 
-			// Может, сразу в игру?
-			if (shouldRedirectToGame(lobby)) {
-			window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${state.myPlayerId}`;
-			return;
-			}
+            renderTeam('Blue', lobby);
+            renderTeam('Red', lobby);
 
-			$('screen-enter').hidden = true;
-			$('screen-lobby').hidden = false;
-			render(lobby);
+            const none = $('team-none');
+            none.innerHTML = '';
+            const orphans = lobby.players.filter(p => !p.teamColor);
+            if (orphans.length === 0) {
+                none.innerHTML = '<div class="empty">Пусто</div>';
+            } else {
+                for (const p of orphans) none.appendChild(makeMember(p, lobby, 'none'));
+            }
 
-			const conn = await ensureConnection();
-			try {
-			await conn.invoke('JoinRoom', state.roomId, state.myPlayerId);
-			} catch (e) {
-			console.error('[JoinRoom]', e);
-			$('lobby-error').textContent = 'Не удалось подключиться к комнате.';
-			}
+            const me = findMe(lobby);
+            const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
 
-			$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
-			}
+            $('btn-start').hidden = !(me && me.isHost) || inGame;
+            $('btn-start').disabled = !canStart(lobby);
+        }
 
-			// === Отрисовка ===
-			function render(lobby) {
-			$('room-code').textContent = lobby.code;
-
-			renderTeam('Blue', lobby);
-			renderTeam('Red', lobby);
-
-			const none = $('team-none');
-			none.innerHTML = '';
-			const orphans = lobby.players.filter(p => !p.teamColor);
-			if (orphans.length === 0) {
-			none.innerHTML = '<div class="empty">Пусто</div>';
-			} else {
-			for (const p of orphans) none.appendChild(makeMember(p, lobby, 'none'));
-			}
-
-			const me = findMe(lobby);
-			const inGame = lobby.state === 'InGame' || lobby.state === 'Finished';
-
-			const returnBtn = $('btn-return-to-game');
-			if (inGame && me && me.role !== 'Spectator' && me.teamId) {
-			returnBtn.style.display = 'block';
-			} else {
-			returnBtn.style.display = 'none';
-			}
-
-			$('btn-start').hidden = !(me && me.isHost) || inGame;
-			$('btn-start').disabled = !canStart(lobby);
-			}
-
-			function canStart(lobby) {
-			for (const color of ['Blue', 'Red']) {
-			const members = lobby.players.filter(p => p.teamColor === color);
-			if (members.length < 2) return false;
+        function canStart(lobby) {
+            for (const color of ['Blue', 'Red']) {
+                const members = lobby.players.filter(p => p.teamColor === color);
+                if (members.length < 2) return false;
                 const team = lobby.teams.find(t => t.color === color);
                 if (!team || !team.spymasterId) return false;
             }
@@ -280,171 +236,179 @@
             const members = lobby.players.filter(p => p.teamColor === color);
             if (members.length === 0) {
                 container.innerHTML = '<div class="empty">Пусто</div>';
-			return;
-			}
-			for (const p of members) container.appendChild(makeMember(p, lobby, color));
-			}
+                return;
+            }
+            for (const p of members) container.appendChild(makeMember(p, lobby, color));
+        }
 
-			function makeMember(player, lobby, currentTeam) {
-			const div = document.createElement('div');
-			div.className = 'member';
+        function makeMember(player, lobby, currentTeam) {
+            const div = document.createElement('div');
+            div.className = 'member';
 
-			const left = document.createElement('div');
-			const crown = player.isHost ? ' 👑' : '';
-			const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер'
-			: (player.role === 'Spectator' ? ' · Зритель' : '');
-			const offline = player.isConnected ? '' : ' · offline';
-			left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}${offline}</span>`;
-			div.appendChild(left);
+            const left = document.createElement('div');
+            const crown = player.isHost ? ' 👑' : '';
+            const roleLabel = player.role === 'Spymaster' ? ' · Спаймастер'
+                : (player.role === 'Spectator' ? ' · Зритель' : '');
+            const offline = player.isConnected ? '' : ' · offline';
+            left.innerHTML = `<span>${escapeHtml(player.nickname)}${crown}${roleLabel}${offline}</span>`;
+            div.appendChild(left);
 
-			const me = findMe(lobby);
-			if (!me || me.id !== player.id) return div;
+            const me = findMe(lobby);
+            if (!me || me.id !== player.id) return div;
 
-			const actions = document.createElement('div');
-			actions.style.display = 'flex';
-			actions.style.gap = '0.3rem';
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '0.3rem';
 
-			if (currentTeam === 'none') {
-			const blueBtn = document.createElement('button');
-			blueBtn.textContent = 'Синие';
-			blueBtn.onclick = () => assignTeam('Blue');
-			actions.appendChild(blueBtn);
+            if (currentTeam === 'none') {
+                const blueBtn = document.createElement('button');
+                blueBtn.textContent = 'Синие';
+                blueBtn.onclick = () => assignTeam('Blue');
+                actions.appendChild(blueBtn);
 
-			const redBtn = document.createElement('button');
-			redBtn.textContent = 'Красные';
-			redBtn.onclick = () => assignTeam('Red');
-			actions.appendChild(redBtn);
-			} else {
-			if (player.role !== 'Spymaster') {
-			const spyBtn = document.createElement('button');
-			spyBtn.textContent = 'Спаймастер';
-			spyBtn.onclick = () => assignRole('Spymaster');
-			actions.appendChild(spyBtn);
-			} else {
-			const operBtn = document.createElement('button');
-			operBtn.textContent = 'Снять спаймастера';
-			operBtn.onclick = () => assignRole('Operative');
-			actions.appendChild(operBtn);
-			}
+                const redBtn = document.createElement('button');
+                redBtn.textContent = 'Красные';
+                redBtn.onclick = () => assignTeam('Red');
+                actions.appendChild(redBtn);
+            } else {
+                if (player.role !== 'Spymaster') {
+                    const spyBtn = document.createElement('button');
+                    spyBtn.textContent = 'Спаймастер';
+                    spyBtn.onclick = () => assignRole('Spymaster');
+                    actions.appendChild(spyBtn);
+                } else {
+                    const operBtn = document.createElement('button');
+                    operBtn.textContent = 'Снять спаймастера';
+                    operBtn.onclick = () => assignRole('Operative');
+                    actions.appendChild(operBtn);
+                }
 
-			const leaveBtn = document.createElement('button');
-			leaveBtn.textContent = 'Выйти';
-			leaveBtn.onclick = () => assignTeam(null);
-			actions.appendChild(leaveBtn);
-			}
+                const leaveBtn = document.createElement('button');
+                leaveBtn.textContent = 'Выйти';
+                leaveBtn.onclick = () => assignTeam(null);
+                actions.appendChild(leaveBtn);
+            }
 
-			div.appendChild(actions);
-			return div;
-			}
+            div.appendChild(actions);
+            return div;
+        }
 
-			async function assignTeam(teamColor) {
-			$('lobby-error').textContent = '';
-			try {
-			await post(`/api/rooms/${state.roomId}/team`, {
-			playerId: state.myPlayerId,
-			teamColor
-			});
-			} catch (e) { $('lobby-error').textContent = e.message; }
-			}
+        async function assignTeam(teamColor) {
+            $('lobby-error').textContent = '';
+            try {
+                await post(`/api/rooms/${state.roomId}/team`, {
+                    playerId: state.myPlayerId,
+                    teamColor
+                });
+            } catch (e) { $('lobby-error').textContent = e.message; }
+        }
 
-			async function assignRole(role) {
-			$('lobby-error').textContent = '';
-			try {
-			await post(`/api/rooms/${state.roomId}/role`, {
-			playerId: state.myPlayerId,
-			role
-			});
-			} catch (e) { $('lobby-error').textContent = e.message; }
-			}
+        async function assignRole(role) {
+            $('lobby-error').textContent = '';
+            try {
+                await post(`/api/rooms/${state.roomId}/role`, {
+                    playerId: state.myPlayerId,
+                    role
+                });
+            } catch (e) { $('lobby-error').textContent = e.message; }
+        }
 
-			function escapeHtml(s) {
-			return String(s).replace(/[&<>"']/g, c => ({
-			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-			}[c]));
-			}
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
-			// === Обработчики ===
-			$('btn-create').onclick = async () => {
-			$('error').textContent = '';
-			const nick = $('nick').value.trim();
-			if (!nick) { $('error').textContent = 'Введи ник'; return; }
-			try {
-			const lobby = await post('/api/rooms', { nickname: nick });
-			const me = lobby.players.find(p => p.nickname === nick);
-			if (!me) throw new Error('Не нашли себя в списке игроков.');
-			state.myPlayerId = me.id;
-			state.myNickname = nick;
-			await enterLobby(lobby);
-			} catch (e) { $('error').textContent = e.message; }
-			};
+        $('btn-create').onclick = async () => {
+            $('error').textContent = '';
+            const nick = $('nick').value.trim();
+            if (!nick) { $('error').textContent = 'Введи ник'; return; }
+            try {
+                const lobby = await post('/api/rooms', { nickname: nick });
+                const me = lobby.players.find(p => p.nickname === nick);
+                if (!me) throw new Error('Не нашли себя в списке игроков.');
+                state.myPlayerId = me.id;
+                state.myNickname = nick;
+                await enterLobby(lobby);
+            } catch (e) { $('error').textContent = e.message; }
+        };
 
-			$('btn-join').onclick = async () => {
-			$('error').textContent = '';
-			const nick = $('nick').value.trim();
-			const code = $('code').value.trim().toUpperCase();
-			if (!nick) { $('error').textContent = 'Введи ник'; return; }
-			if (!code) { $('error').textContent = 'Введи код'; return; }
-			try {
-			const lobby = await post(`/api/rooms/${code}/join`, { nickname: nick });
-			const me = lobby.players.find(p => p.nickname === nick);
-			if (!me) throw new Error('Не нашли себя в списке игроков.');
-			state.myPlayerId = me.id;
-			state.myNickname = nick;
-			await enterLobby(lobby);
-			} catch (e) { $('error').textContent = e.message; }
-			};
+        $('btn-join').onclick = async () => {
+            $('error').textContent = '';
+            const nick = $('nick').value.trim();
+            const code = $('code').value.trim().toUpperCase();
+            if (!nick) { $('error').textContent = 'Введи ник'; return; }
+            if (!code) { $('error').textContent = 'Введи код'; return; }
+            try {
+                const lobby = await post(`/api/rooms/${code}/join`, { nickname: nick });
+                const me = lobby.players.find(p => p.nickname === nick);
+                if (!me) throw new Error('Не нашли себя в списке игроков.');
+                state.myPlayerId = me.id;
+                state.myNickname = nick;
+                await enterLobby(lobby);
+            } catch (e) { $('error').textContent = e.message; }
+        };
 
-			$('btn-start').onclick = async () => {
-			$('lobby-error').textContent = '';
-			try {
-			await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
-			} catch (e) { $('lobby-error').textContent = e.message; }
-			};
+        $('btn-start').onclick = async () => {
+            $('lobby-error').textContent = '';
+            try {
+                await post(`/api/rooms/${state.roomId}/start`, { playerId: state.myPlayerId });
+            } catch (e) { $('lobby-error').textContent = e.message; }
+        };
 
-			$('btn-return-to-game').onclick = () => {
-			window.location.href = `/game.html?roomId=${state.roomId}&playerId=${state.myPlayerId}`;
-			};
+        // === Init ===
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const urlRoomId = params.get('roomId');
+            const urlPlayerId = params.get('playerId');
 
-			// === Init — восстановление из URL ===
-			async function init() {
-			const params = new URLSearchParams(window.location.search);
-			const urlRoomId = params.get('roomId');
-			const urlPlayerId = params.get('playerId');
+            if (!urlRoomId) return;
 
-			if (!urlRoomId) return;
+            try {
+                const lobby = await get(`/api/rooms/${urlRoomId}`);
 
-			try {
-			const lobby = await get(`/api/rooms/${urlRoomId}`);
+                // Пытаемся найти себя: сначала по ID из URL, потом по нику
+                if (urlPlayerId) {
+                    const byId = lobby.players.find(p => p.id === urlPlayerId);
+                    if (byId) {
+                        state.myPlayerId = byId.id;
+                        state.myNickname = byId.nickname;
 
-			// Восстанавливаем себя: по ID из URL, потом по нику
-			if (urlPlayerId) {
-			const byId = lobby.players.find(p => p.id === urlPlayerId);
-			if (byId) {
-			state.myPlayerId = byId.id;
-			state.myNickname = byId.nickname;
-			await enterLobby(lobby);
-			return;
-			}
-			}
+                        // Если партия идёт — сразу в игру
+                        if (lobby.state === 'InGame' || lobby.state === 'Finished') {
+                            window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${byId.id}`;
+                            return;
+                        }
 
-			const nick = $('nick').value.trim();
-			const byNick = lobby.players.find(p => p.nickname === nick);
-			if (byNick) {
-			state.myPlayerId = byNick.id;
-			state.myNickname = byNick.nickname;
-			await enterLobby(lobby);
-			return;
-			}
+                        await enterLobby(lobby);
+                        return;
+                    }
+                }
 
-			// Не нашли себя — чистый URL, экран входа
-			window.history.replaceState({}, '', '/lobby.html');
-			} catch (e) {
-			console.warn('[init]', e);
-			window.history.replaceState({}, '', '/lobby.html');
-			}
-			}
+                const nick = $('nick').value.trim();
+                const byNick = lobby.players.find(p => p.nickname === nick);
+                if (byNick) {
+                    state.myPlayerId = byNick.id;
+                    state.myNickname = byNick.nickname;
 
-			init();
-		</script>
-	</body>
+                    if (lobby.state === 'InGame' || lobby.state === 'Finished') {
+                        window.location.href = `/game.html?roomId=${lobby.roomId}&playerId=${byNick.id}`;
+                        return;
+                    }
+
+                    await enterLobby(lobby);
+                    return;
+                }
+
+                // Не смогли найти себя — оставляем экран входа
+                window.history.replaceState({}, '', '/lobby.html');
+            } catch (e) {
+                console.warn('[init]', e);
+                window.history.replaceState({}, '', '/lobby.html');
+            }
+        }
+
+        init();
+    </script>
+</body>
 </html>

@@ -29,10 +29,18 @@ public record PlayerDto(
     bool IsConnected
 );
 
-// Команда в лобби
+// Член команды — для боковых панелей
+public record TeamMemberDto(
+    string Nickname,
+    PlayerRole Role,
+    bool IsYou
+);
+
+// Команда
 public record TeamDto(
     Guid Id,
     TeamColor Color,
     int Score,
-    Guid? SpymasterId
+    Guid? SpymasterId,
+    IReadOnlyList<TeamMemberDto> Members
 );

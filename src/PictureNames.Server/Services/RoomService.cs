@@ -52,77 +52,87 @@ public class RoomService
     }
 
     public async Task<LobbyDto> JoinRoomAsync(string code, string nickname, CancellationToken ct = default)
+{
+    var room = await _db.Rooms
+        .FirstOrDefaultAsync(r => r.Code == code.ToUpperInvariant(), ct)
+        ?? throw new InvalidOperationException("Комната не найдена.");
+
+    var trimmedNick = nickname.Trim();
+
+    // Reconnect: если такой игрок уже в комнате — восстанавливаем
+    var existing = await _db.Players
+        .FirstOrDefaultAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
+
+    if (existing is not null)
     {
-        var room = await _db.Rooms
-            .FirstOrDefaultAsync(r => r.Code == code.ToUpperInvariant(), ct)
-            ?? throw new InvalidOperationException("Комната не найдена.");
-
-        var trimmedNick = nickname.Trim();
-
-        // Reconnect: если такой игрок уже в комнате — восстанавливаем
-        var existing = await _db.Players
-            .FirstOrDefaultAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
-
-        if (existing is not null)
-        {
-            existing.IsConnected = true;
-            await _db.SaveChangesAsync(ct);
-            var lobbyExisting = await GetLobbyAsync(room.Id, ct);
-            await _notifier.LobbyUpdatedAsync(room.Id, lobbyExisting, ct);
-            return lobbyExisting;
-        }
-
-        // Новый игрок: в лобби — оперативник, в игре — зритель
-        var role = room.State == RoomState.Lobby
-            ? PlayerRole.Operative
-            : PlayerRole.Spectator;
-
-        _db.Players.Add(new Player
-        {
-            RoomId = room.Id,
-            Nickname = trimmedNick,
-            Role = role,
-            IsConnected = true
-        });
-
+        existing.IsConnected = true;
         await _db.SaveChangesAsync(ct);
-        var lobby = await GetLobbyAsync(room.Id, ct);
-        await _notifier.LobbyUpdatedAsync(room.Id, lobby, ct);
-        return lobby;
+        var lobbyExisting = await GetLobbyAsync(room.Id, ct);
+        await _notifier.LobbyUpdatedAsync(room.Id, lobbyExisting, ct);
+        return lobbyExisting;
     }
+
+    // Проверка: ник занят другим игроком
+    var nickTaken = await _db.Players
+        .AnyAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
+
+    if (nickTaken)
+        throw new InvalidOperationException("Этот ник уже занят в комнате.");
+
+    var role = room.State == RoomState.Lobby
+        ? PlayerRole.Operative
+        : PlayerRole.Spectator;
+
+    _db.Players.Add(new Player
+    {
+        RoomId = room.Id,
+        Nickname = trimmedNick,
+        Role = role,
+        IsConnected = true
+    });
+
+    await _db.SaveChangesAsync(ct);
+    var lobby = await GetLobbyAsync(room.Id, ct);
+    await _notifier.LobbyUpdatedAsync(room.Id, lobby, ct);
+    return lobby;
+}
 
     public async Task<LobbyDto> GetLobbyAsync(Guid roomId, CancellationToken ct = default)
-    {
-        var room = await _db.Rooms
-            .Include(r => r.Teams)
-            .Include(r => r.Players)
-            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
-            ?? throw new InvalidOperationException("Комната не найдена.");
+{
+    var room = await _db.Rooms
+        .Include(r => r.Teams)
+        .Include(r => r.Players)
+        .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+        ?? throw new InvalidOperationException("Комната не найдена.");
 
-        var teamColors = room.Teams.ToDictionary(t => t.Id, t => t.Color);
+    var teamColors = room.Teams.ToDictionary(t => t.Id, t => t.Color);
 
-        var players = room.Players
-            .OrderBy(p => p.JoinedAt)
-            .Select(p => new PlayerDto(
-                p.Id,
-                p.Nickname,
-                p.TeamId,
-                p.TeamId.HasValue && teamColors.TryGetValue(p.TeamId.Value, out var c) ? c : null,
-                p.Role,
-                p.IsHost,
-                p.IsConnected
-            ))
-            .ToList();
+    // Материализуем ДО проекции — иначе EF ломается
+    var playersList = room.Players.ToList();
+    var teamsList = room.Teams.ToList();
 
-        var teams = room.Teams
-            .OrderBy(t => t.Color)
-            .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
-            .ToList();
+    var players = playersList
+        .OrderBy(p => p.JoinedAt)
+        .Select(p => new PlayerDto(
+            p.Id,
+            p.Nickname,
+            p.TeamId,
+            p.TeamId.HasValue && teamColors.TryGetValue(p.TeamId.Value, out var c) ? c : null,
+            p.Role,
+            p.IsHost,
+            p.IsConnected
+        ))
+        .ToList();
 
-        var host = room.Players.FirstOrDefault(p => p.IsHost);
+    var teams = teamsList
+        .OrderBy(t => t.Color)
+        .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
+        .ToList();
 
-        return new LobbyDto(room.Id, room.Code, room.State, host?.Id, players, teams);
-    }
+    var host = playersList.FirstOrDefault(p => p.IsHost);
+
+    return new LobbyDto(room.Id, room.Code, room.State, host?.Id, players, teams);
+}
 
     public async Task<LobbyDto> AssignTeamAsync(Guid roomId, Guid playerId, TeamColor? teamColor, CancellationToken ct = default)
     {

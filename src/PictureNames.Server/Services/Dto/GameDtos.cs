@@ -13,15 +13,23 @@ public record RevealCardRequest(Guid PlayerId, Guid CardId);
 
 public enum RevealOutcome
 {
-    Correct,     // своя карта
-    WrongTeam,   // чужая карта
-    Neutral,     // нейтральная
-    Assassin,    // ассасин — мгновенный конец
-    Ignored      // не должен был происходить
+    Correct,
+    WrongTeam,
+    Neutral,
+    Assassin,
+    Ignored
 }
 
-// Текущая подсказка (id текущей команды + слово + число)
+// Текущая подсказка
 public record ClueDto(string Word, int Number, TeamColor Team);
+
+// Одна запись в истории подсказок
+public record ClueHistoryDto(
+    string Word,
+    int Number,
+    TeamColor Team,
+    DateTime At
+);
 
 // === Карты ===
 public record CardForSpymasterDto(
@@ -42,11 +50,13 @@ public record GameStateForOperativeDto(
     TeamColor? CurrentTurnTeam,
     TeamColor? YourTeam,
     PlayerRole YourRole,
+    bool IsHost,
     ClueDto? CurrentClue,
     int GuessesMade,
     int GuessesAllowed,
     IReadOnlyList<CardForOperativeDto> Cards,
-    IReadOnlyList<TeamDto> Teams
+    IReadOnlyList<TeamDto> Teams,
+    IReadOnlyList<ClueHistoryDto> ClueHistory
 );
 
 public record GameStateForSpymasterDto(
@@ -56,9 +66,11 @@ public record GameStateForSpymasterDto(
     TeamColor? CurrentTurnTeam,
     TeamColor? YourTeam,
     PlayerRole YourRole,
+    bool IsHost,
     ClueDto? CurrentClue,
     int GuessesMade,
     int GuessesAllowed,
     IReadOnlyList<CardForSpymasterDto> Cards,
-    IReadOnlyList<TeamDto> Teams
+    IReadOnlyList<TeamDto> Teams,
+    IReadOnlyList<ClueHistoryDto> ClueHistory
 );

@@ -2,6 +2,7 @@
 using PictureNames.Server.Data;
 using PictureNames.Server.Entities;
 using PictureNames.Server.Services.Dto;
+using System.Text.Json;
 
 namespace PictureNames.Server.Services;
 
@@ -41,7 +42,6 @@ public class GameService
         }
 
         var allImages = await _db.Images.ToListAsync(ct);
-
         if (allImages.Count < 25)
             throw new InvalidOperationException($"В базе {allImages.Count} картинок, нужно минимум 25.");
 
@@ -108,10 +108,12 @@ public class GameService
         if (number < 1 || number > 9)
             throw new InvalidOperationException("Число должно быть от 1 до 9.");
 
+        var team = room.Teams.First(t => t.Id == player.TeamId!.Value);
+
         room.ClueWord = word.Trim();
         room.ClueNumber = number;
         room.ClueTeamId = player.TeamId;
-        room.GuessesAllowed = number; // для справки, не блокирует
+        room.GuessesAllowed = number;
         room.GuessCount = 0;
 
         _db.Moves.Add(new Move
@@ -119,7 +121,12 @@ public class GameService
             RoomId = roomId,
             PlayerId = playerId,
             Type = MoveType.Clue,
-            Payload = System.Text.Json.JsonSerializer.Serialize(new { word = room.ClueWord, number })
+            Payload = JsonSerializer.Serialize(new
+            {
+                word = room.ClueWord,
+                number,
+                team = team.Color.ToString()
+            })
         });
 
         await _db.SaveChangesAsync(ct);
@@ -195,7 +202,7 @@ public class GameService
             RoomId = roomId,
             PlayerId = playerId,
             Type = MoveType.Guess,
-            Payload = System.Text.Json.JsonSerializer.Serialize(new
+            Payload = JsonSerializer.Serialize(new
             {
                 cardId,
                 color = card.Color.ToString(),
@@ -244,66 +251,45 @@ public class GameService
         await _db.SaveChangesAsync(ct);
     }
 
-    // === Реванш ===
+    // === Возврат в лобби ===
 
-    // Реванш: сбрасывает счёт и карты. Если составы полны — сразу генерирует новое поле.
-// Возвращает true, если новая партия сразу стартовала; false — если перешли в лобби.
-// Хост не требуется — любой игрок в комнате может запустить реванш.
-public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
-{
-    var room = await _db.Rooms
-        .Include(r => r.Teams)
-        .Include(r => r.Players)
-        .FirstOrDefaultAsync(r => r.Id == roomId, ct)
-        ?? throw new InvalidOperationException("Комната не найдена.");
-
-    var player = room.Players.FirstOrDefault(p => p.Id == playerId)
-        ?? throw new InvalidOperationException("Игрок не найден.");
-
-    // Сбрасываем карты
-    var cards = _db.Cards.Where(c => c.RoomId == roomId);
-    _db.Cards.RemoveRange(cards);
-
-    // Сбрасываем счёт и подсказки
-    foreach (var t in room.Teams)
-        t.Score = 0;
-
-    room.State = RoomState.Lobby;
-    room.CurrentTurnTeamId = null;
-    room.GuessCount = 0;
-    room.GuessesAllowed = 0;
-    room.ClueWord = null;
-    room.ClueNumber = null;
-    room.ClueTeamId = null;
-
-    // Spectator → Operative (новая партия, все играют)
-    foreach (var p in room.Players)
+    // Закрывает партию: удаляет карты, обнуляет счёт и подсказки,
+    // переводит комнату в Lobby. Может вызвать любой игрок.
+    // Хост потом жмёт "Начать игру" в лобби.
+    public async Task ResetToLobbyAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
-        if (p.Role == PlayerRole.Spectator)
-            p.Role = PlayerRole.Operative;
-    }
+        var room = await _db.Rooms
+            .Include(r => r.Teams)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
 
-    await _db.SaveChangesAsync(ct);
+        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
 
-    // Проверяем готовность: в каждой команде 2+ игрока и есть спаймастер
-    var canStart = true;
-    foreach (var team in room.Teams)
-    {
-        var members = room.Players.Where(p => p.TeamId == team.Id).ToList();
-        if (members.Count < 2 || team.SpymasterId is null)
+        var cards = _db.Cards.Where(c => c.RoomId == roomId);
+        _db.Cards.RemoveRange(cards);
+
+        foreach (var t in room.Teams)
+            t.Score = 0;
+
+        room.State = RoomState.Lobby;
+        room.CurrentTurnTeamId = null;
+        room.GuessCount = 0;
+        room.GuessesAllowed = 0;
+        room.ClueWord = null;
+        room.ClueNumber = null;
+        room.ClueTeamId = null;
+
+        // Spectator → Operative: в новой партии все играют
+        foreach (var p in room.Players)
         {
-            canStart = false;
-            break;
+            if (p.Role == PlayerRole.Spectator)
+                p.Role = PlayerRole.Operative;
         }
+
+        await _db.SaveChangesAsync(ct);
     }
-
-    if (!canStart)
-        return false;
-
-    // Сразу генерируем новое поле
-    await GenerateFieldAsync(roomId, ct);
-    return true;
-}
 
     // === Сборка состояния ===
 
@@ -321,8 +307,8 @@ public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationTok
 
         return new GameStateForOperativeDto(
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
-            state.YourTeam, state.YourRole, state.CurrentClue,
-            state.GuessesMade, state.GuessesAllowed,
+            state.YourTeam, state.YourRole, state.IsHost,
+            state.CurrentClue, state.GuessesMade, state.GuessesAllowed,
             cards, state.Teams
         );
     }
@@ -339,8 +325,8 @@ public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationTok
 
         return new GameStateForSpymasterDto(
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
-            state.YourTeam, state.YourRole, state.CurrentClue,
-            state.GuessesMade, state.GuessesAllowed,
+            state.YourTeam, state.YourRole, state.IsHost,
+            state.CurrentClue, state.GuessesMade, state.GuessesAllowed,
             cards, state.Teams
         );
     }
@@ -350,6 +336,7 @@ public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationTok
     private record InternalState(
         Guid RoomId, string Code, RoomState State,
         TeamColor? CurrentTurnTeam, TeamColor? YourTeam, PlayerRole YourRole,
+        bool IsHost,
         ClueDto? CurrentClue, int GuessesMade, int GuessesAllowed,
         List<InternalCard> Cards, List<TeamDto> Teams
     );
@@ -388,14 +375,17 @@ public async Task<bool> RematchAsync(Guid roomId, Guid playerId, CancellationTok
             ))
             .ToList();
 
-        var teams = room.Teams
+        // Материализуем коллекции ДО проекции — иначе EF ломается на вложенных Where
+        var teamsList = room.Teams.ToList();
+
+        var teams = teamsList
             .OrderBy(t => t.Color)
             .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
             .ToList();
 
         return new InternalState(
             room.Id, room.Code, room.State,
-            currentTurnTeam, yourTeam, player.Role,
+            currentTurnTeam, yourTeam, player.Role, player.IsHost,
             clue, room.GuessCount, room.GuessesAllowed,
             cards, teams
         );

@@ -174,12 +174,10 @@ public class GameHub : Hub
 
     if (started)
     {
-        // Все сразу в новой партии
         await BroadcastGameStateAsync(roomId);
     }
     else
     {
-        // Не хватило игроков — возвращаем в лобби, там доберут состав
         var lobby = await _rooms.GetLobbyAsync(roomId);
         await Clients.Group(RoomGroup(roomId)).SendAsync("LobbyUpdated", lobby);
     }
