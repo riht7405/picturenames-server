@@ -146,13 +146,20 @@ public class GameHub : Hub
 
     public async Task RevealCard(Guid roomId, Guid playerId, Guid cardId)
     {
-        var outcome = await _game.RevealCardAsync(roomId, playerId, cardId);
+        var result = await _game.RevealCardAsync(roomId, playerId, cardId);
 
         await Clients.Group(RoomGroup(roomId)).SendAsync("RevealOutcome", new
         {
             cardId,
-            outcome = outcome.ToString()
+            outcome = result.Outcome.ToString(),
+            bonusSeconds = result.BonusSeconds
         });
+
+        if (result.BonusSeconds > 0)
+        {
+            await Clients.Group(RoomGroup(roomId))
+                .SendAsync("TurnBonus", new { seconds = result.BonusSeconds });
+        }
 
         await NotifyStateChanged(roomId);
     }

@@ -10,10 +10,15 @@ public class Room
     public int GuessCount { get; set; }
     public int GuessesAllowed { get; set; }
 
-    // Текущая подсказка. Обнуляется при смене хода.
     public string? ClueWord { get; set; }
     public int? ClueNumber { get; set; }
     public Guid? ClueTeamId { get; set; }
+
+    // === Таймер хода ===
+    public int TurnNumber { get; set; } = 0;              // 0 = первый ход партии
+    public DateTime? TurnStartedAtUtc { get; set; }
+    public DateTime? SpymasterDeadlineUtc { get; set; }   // граница спаймастер-фазы (для «овертайма»)
+    public DateTime? TurnDeadlineUtc { get; set; }        // жёсткий дедлайн хода
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

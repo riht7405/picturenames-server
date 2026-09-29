@@ -2,129 +2,686 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PictureNames</title>
     <style>
+        :root {
+            --bg: #0a0a0e;
+            --bg-2: #0f0f14;
+            --card: rgba(23, 23, 28, 0.65);
+            --card-solid: #17171c;
+            --border: rgba(255, 255, 255, 0.07);
+            --border-strong: rgba(255, 255, 255, 0.12);
+            --border-hover: rgba(122, 184, 255, 0.4);
+            --text: #e8e8e8;
+            --text-dim: #8a8a94;
+            --text-mute: #6a6a72;
+            --accent: #7ab8ff;
+            --accent-2: #b47aff;
+            --accent-3: #ff9a9a;
+            --ok: #6ee89a;
+            --warn: #ffcf7a;
+            --err: #ff8a8a;
+
+            --blue-bg: #14243d;
+            --blue-accent: #7ab8ff;
+            --red-bg: #3d1616;
+            --red-accent: #ff9a9a;
+            --neutral-bg: #2a2a36;
+            --neutral-accent: #8a8a94;
+            --assassin-bg: #150020;
+            --assassin-accent: #e066ff;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
-            font-family: system-ui, sans-serif;
-            background: #0f0f12;
-            color: #e8e8e8;
-            display: grid;
-            place-items: center;
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
             min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        ::selection { background: rgba(122, 184, 255, 0.28); color: #fff; }
+
+        /* === Анимированный фон === */
+        .bg-orbs {
+            position: fixed; inset: 0;
+            overflow: hidden;
+            z-index: -2;
+            pointer-events: none;
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.4;
+            will-change: transform;
+        }
+        .orb-1 {
+            width: 460px; height: 460px;
+            background: radial-gradient(circle, #2b5c9a 0%, transparent 70%);
+            top: -120px; left: -100px;
+            animation: float1 22s ease-in-out infinite;
+        }
+        .orb-2 {
+            width: 520px; height: 520px;
+            background: radial-gradient(circle, #5c2b8a 0%, transparent 70%);
+            top: 20%; right: -160px;
+            animation: float2 28s ease-in-out infinite;
+        }
+        .orb-3 {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, #8a2b3a 0%, transparent 70%);
+            bottom: -120px; left: 30%;
+            animation: float3 26s ease-in-out infinite;
+        }
+        @keyframes float1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(80px, 40px) scale(1.1); }
+        }
+        @keyframes float2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-90px, 60px) scale(1.15); }
+        }
+        @keyframes float3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(60px, -50px) scale(0.95); }
+        }
+
+        .bg-grid {
+            position: fixed; inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%);
+            -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%);
+        }
+
+        /* === Оболочка === */
+        .shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* === Шапка === */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            animation: fadeIn 0.6s ease both;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .brand-mark {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            background:
+                linear-gradient(135deg, rgba(122,184,255,0.25), rgba(180,122,255,0.25)),
+                var(--card-solid);
+            border: 1px solid var(--border-strong);
+            display: grid; place-items: center;
+            font-family: monospace;
+            font-weight: 500;
+            font-size: 18px;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.02),
+                0 8px 24px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .brand h1 {
+            font-weight: 300;
+            font-size: 22px;
+            letter-spacing: 0.06em;
             margin: 0;
         }
-        .card {
-            width: 480px;
-            padding: 2rem;
-            background: #17171c;
+        .tagline {
+            font-size: 12px;
+            color: var(--text-mute);
+            margin: 2px 0 0;
+            letter-spacing: 0.02em;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 12px;
+            color: var(--text-dim);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .status .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--warn);
+            box-shadow: 0 0 8px currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .status.ok .dot { background: var(--ok); }
+        .status.warn .dot { background: var(--warn); }
+        .status.err .dot { background: var(--err); animation: none; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+
+        /* === Секции === */
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            animation: fadeIn 0.6s ease both;
+        }
+        .section:nth-of-type(1) { animation-delay: 0.08s; }
+        .section:nth-of-type(2) { animation-delay: 0.18s; }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        /* === Игры === */
+        .games {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+
+        .game-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: 128px 1fr;
+            gap: 1.25rem;
+            align-items: center;
+            padding: 1.25rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            text-decoration: none;
+            color: inherit;
+            overflow: hidden;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            transition:
+                transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+                border-color 0.28s ease,
+                box-shadow 0.28s ease;
+            isolation: isolate;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                115deg,
+                transparent 30%,
+                rgba(122, 184, 255, 0.14) 50%,
+                transparent 70%
+            );
+            transform: translateX(-110%);
+            transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .game-card:hover::before { transform: translateX(110%); }
+
+        .game-card:not(.disabled):hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+            box-shadow:
+                0 0 0 1px rgba(122, 184, 255, 0.08),
+                0 20px 40px rgba(0, 0, 0, 0.55),
+                0 0 60px rgba(122, 184, 255, 0.08);
+        }
+        .game-card:not(.disabled):active {
+            transform: translateY(-1px);
+        }
+        .game-card:focus-visible {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.25);
+        }
+
+        .game-card.disabled {
+            cursor: default;
+            opacity: 0.55;
+        }
+
+        /* Мини-превью поля 3x3 */
+        .game-preview {
+            aspect-ratio: 1 / 1;
+            width: 128px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 5px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 12px;
-            border: 1px solid #26262e;
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease;
         }
-        h1 { font-weight: 300; letter-spacing: 0.05em; margin-top: 0; }
-        input, button {
-            font: inherit;
-            padding: 0.6rem 0.8rem;
-            background: #0f0f12;
-            color: #e8e8e8;
-            border: 1px solid #2e2e38;
-            border-radius: 6px;
+        .game-card:not(.disabled):hover .game-preview {
+            transform: scale(1.03) rotate(-1deg);
         }
-        button { cursor: pointer; background: #2a2a36; }
-        button:hover { background: #353542; }
-        .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .row input:first-child { width: 120px; }
-        .row input:nth-child(2) { flex: 1; }
-        #log {
-            margin-top: 1rem;
-            padding: 0.8rem;
-            background: #0f0f12;
-            border-radius: 6px;
-            min-height: 80px;
-            max-height: 200px;
+        .preview-cell {
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        .preview-cell.blue {
+            background: var(--blue-bg);
+            border-color: rgba(122, 184, 255, 0.55);
+            box-shadow: 0 0 6px rgba(80, 150, 255, 0.4);
+        }
+        .preview-cell.red {
+            background: var(--red-bg);
+            border-color: rgba(255, 154, 154, 0.55);
+            box-shadow: 0 0 6px rgba(255, 100, 100, 0.4);
+        }
+        .preview-cell.neutral {
+            background: var(--neutral-bg);
+            border-color: rgba(140, 140, 150, 0.4);
+        }
+        .preview-cell.assassin {
+            background: var(--assassin-bg);
+            border-color: rgba(230, 100, 255, 0.85);
+            box-shadow: 0 0 10px rgba(200, 60, 230, 0.7);
+            animation: assassin-glow 2.4s ease-in-out infinite;
+        }
+        @keyframes assassin-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(200, 60, 230, 0.5); }
+            50% { box-shadow: 0 0 14px rgba(230, 100, 255, 0.95); }
+        }
+
+        .game-preview.soon {
+            display: grid;
+            place-items: center;
+            font-family: monospace;
+            font-size: 42px;
+            color: var(--text-mute);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .game-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            position: relative;
+            z-index: 2;
+        }
+        .game-body h3 {
+            margin: 0;
+            font-weight: 400;
+            font-size: 17px;
+            letter-spacing: 0.02em;
+        }
+        .game-body p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        .game-cta {
+            margin-top: 0.4rem;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+        .game-card:not(.disabled):hover .game-cta {
+            transform: translateX(4px);
+        }
+        .game-cta.muted { color: var(--text-mute); }
+
+        /* === Чат === */
+        .chat {
+            display: flex;
+            flex-direction: column;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+        .chat-log {
+            padding: 1.1rem 1.2rem;
+            height: 260px;
             overflow-y: auto;
             font-size: 14px;
+            line-height: 1.55;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.12) transparent;
         }
-        #log div { margin-bottom: 0.3rem; }
-        .nick { color: #7ab8ff; }
-        .time { color: #6a6a72; font-size: 12px; margin-left: 0.5rem; }
-        .status { font-size: 12px; color: #6a6a72; margin-bottom: 1rem; }
-        .seal {
-            font-family: monospace;
-            font-size: 11px;
-            color: #4a4a52;
-            margin-top: 1.5rem;
-            white-space: pre;
+        .chat-log::-webkit-scrollbar { width: 8px; }
+        .chat-log::-webkit-scrollbar-track { background: transparent; }
+        .chat-log::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .chat-log::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+        .chat-empty {
+            color: var(--text-mute);
+            font-style: italic;
+            font-size: 13px;
             text-align: center;
+            padding: 2rem 0;
+        }
+
+        .chat-log .msg {
+            margin-bottom: 0.55rem;
+            animation: msgIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .chat-log .msg .nick {
+            color: var(--accent);
+            font-weight: 500;
+            margin-right: 0.35rem;
+        }
+        .chat-log .msg .text { color: var(--text); }
+        .chat-log .msg .time {
+            color: var(--text-mute);
+            font-size: 11px;
+            margin-left: 0.5rem;
+            font-family: monospace;
+        }
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .chat-input input {
+            font: inherit;
+            font-size: 14px;
+            padding: 0.65rem 0.85rem;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .chat-input input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
+        }
+        .chat-input #nick { width: 110px; flex-shrink: 0; }
+        .chat-input #text { flex: 1; min-width: 0; }
+        .chat-input button {
+            font: inherit;
+            font-size: 14px;
+            padding: 0.65rem 1.2rem;
+            background: linear-gradient(180deg, #2e2e3c, #23232e);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .chat-input button:hover {
+            border-color: var(--accent);
+            color: #fff;
+            background: linear-gradient(180deg, #353545, #282834);
+        }
+        .chat-input button:active {
+            transform: translateY(1px);
+        }
+
+        /* === Футер === */
+        .footer {
+            text-align: center;
+            padding: 1rem 0 0;
+            animation: fadeIn 0.8s ease 0.3s both;
+        }
+        .seal {
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 11px;
+            color: #3d3d46;
+            letter-spacing: 0.05em;
+        }
+
+        /* === Анимации === */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === Адаптив === */
+        @media (max-width: 640px) {
+            .shell { padding: 2rem 1rem 1.5rem; gap: 1.8rem; }
+            .brand-mark { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
+            .brand h1 { font-size: 19px; }
+            .game-card {
+                grid-template-columns: 96px 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            .game-preview { width: 96px; padding: 5px; gap: 4px; }
+            .chat-log { height: 200px; padding: 0.9rem; }
+            .chat-input { flex-wrap: wrap; }
+            .chat-input #nick { width: 90px; }
+            .chat-input button { flex-basis: 100%; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .orb { animation: none; }
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>PictureNames · SignalR тест</h1>
-        <div class="status" id="status">Соединение…</div>
 
-        <div class="row">
-            <input id="nick" placeholder="Ник" value="riht" />
-            <input id="text" placeholder="Сообщение..." />
-            <button id="send">Отправить</button>
+<!-- Анимированный фон -->
+<div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<main class="shell">
+
+    <!-- Шапка -->
+    <header class="header">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true">PN</div>
+            <div>
+                <h1>PictureNames</h1>
+                <p class="tagline">Словесная игра с картинками</p>
+            </div>
         </div>
+        <div class="status warn" id="status">
+            <span class="dot"></span>
+            <span class="status-text">Соединение…</span>
+        </div>
+    </header>
 
-        <div id="log"></div>
+    <!-- Игры -->
+    <section class="section">
+        <h2 class="section-title">Игры</h2>
+        <div class="games">
+            <a class="game-card" href="/lobby.html">
+                <div class="game-preview" aria-hidden="true">
+                    <div class="preview-cell blue"></div>
+                    <div class="preview-cell blue"></div>
+                    <div class="preview-cell red"></div>
+                    <div class="preview-cell neutral"></div>
+                    <div class="preview-cell red"></div>
+                    <div class="preview-cell blue"></div>
+                    <div class="preview-cell blue"></div>
+                    <div class="preview-cell assassin"></div>
+                    <div class="preview-cell red"></div>
+                </div>
+                <div class="game-body">
+                    <h3>Picture Game</h3>
+                    <p>Codenames с картинками. Собери команду, дай подсказку, найди агентов — и не открой ассасина.</p>
+                    <span class="game-cta">Играть →</span>
+                </div>
+            </a>
 
+            <div class="game-card disabled" aria-disabled="true">
+                <div class="game-preview soon" aria-hidden="true">?</div>
+                <div class="game-body">
+                    <h3>Скоро</h3>
+                    <p>Новые игры появятся здесь.</p>
+                    <span class="game-cta muted">В разработке</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Чат -->
+    <section class="section">
+        <h2 class="section-title">Общий чат</h2>
+        <div class="chat">
+            <div class="chat-log" id="log">
+                <div class="chat-empty">Здесь пока пусто. Скажи что-нибудь.</div>
+            </div>
+            <div class="chat-input">
+                <input id="nick" placeholder="Ник" value="riht" maxlength="24" />
+                <input id="text" placeholder="Сообщение…" maxlength="400" />
+                <button id="send">Отправить</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Подпись -->
+    <footer class="footer">
         <div class="seal">// [riht] est via recta () => {真理} > {}</div>
-    </div>
+    </footer>
 
-    <!-- Клиент SignalR из CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+</main>
 
-    <script>
-        const statusEl = document.getElementById('status');
-        const logEl = document.getElementById('log');
-        const nickEl = document.getElementById('nick');
-        const textEl = document.getElementById('text');
+<!-- SignalR -->
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/gamehub")
-            .withAutomaticReconnect()
-            .build();
+<script>
+    const $ = id => document.getElementById(id);
+    const statusEl = $('status');
+    const statusText = statusEl.querySelector('.status-text');
+    const logEl = $('log');
+    const nickEl = $('nick');
+    const textEl = $('text');
 
-        // Подписка на событие сервера
-        connection.on("MessageReceived", (nick, text, timeUtc) => {
-            const time = new Date(timeUtc).toLocaleTimeString();
-            const row = document.createElement('div');
-            row.innerHTML = `<span class="nick">${escapeHtml(nick)}:</span> ${escapeHtml(text)}<span class="time">${time}</span>`;
-            logEl.appendChild(row);
-            logEl.scrollTop = logEl.scrollHeight;
+    // Установить статус подключения
+    function setStatus(text, kind) {
+        statusText.textContent = text;
+        statusEl.classList.remove('ok', 'warn', 'err');
+        if (kind) statusEl.classList.add(kind);
+    }
+
+    // Убрать "пусто" при первом сообщении
+    function clearEmpty() {
+        const empty = logEl.querySelector('.chat-empty');
+        if (empty) empty.remove();
+    }
+
+    // Экранирование
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    // Подключение SignalR
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl('/gamehub')
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on('MessageReceived', (nick, text, timeUtc) => {
+        clearEmpty();
+        const time = new Date(timeUtc).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
         });
+        const row = document.createElement('div');
+        row.className = 'msg';
+        row.innerHTML =
+            `<span class="nick">${escapeHtml(nick)}:</span>` +
+            `<span class="text">${escapeHtml(text)}</span>` +
+            `<span class="time">${time}</span>`;
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+    });
 
-        connection.onreconnecting(() => statusEl.textContent = 'Соединение потеряно, переподключение…');
-        connection.onreconnected(() => statusEl.textContent = 'Переподключено');
-        connection.onclose(() => statusEl.textContent = 'Соединение закрыто');
+    connection.onreconnecting(() => setStatus('Переподключение…', 'warn'));
+    connection.onreconnected(() => setStatus('Подключено · ' + connection.connectionId.slice(0, 8), 'ok'));
+    connection.onclose(() => setStatus('Соединение закрыто', 'err'));
 
-        // Запуск соединения
-        connection.start()
-            .then(() => statusEl.textContent = 'Подключено · ' + connection.connectionId.slice(0, 8))
-            .catch(err => statusEl.textContent = 'Ошибка: ' + err);
+    connection.start()
+        .then(() => setStatus('Подключено · ' + connection.connectionId.slice(0, 8), 'ok'))
+        .catch(err => setStatus('Ошибка: ' + err, 'err'));
 
-        // Отправка сообщения
-        async function send() {
-            const nick = nickEl.value.trim() || 'anon';
-            const text = textEl.value.trim();
-            if (!text) return;
-            await connection.invoke("SendMessage", nick, text);
+    // Отправка
+    async function send() {
+        const nick = nickEl.value.trim() || 'anon';
+        const text = textEl.value.trim();
+        if (!text) return;
+        try {
+            await connection.invoke('SendMessage', nick, text);
             textEl.value = '';
             textEl.focus();
+        } catch (e) {
+            setStatus('Ошибка отправки', 'err');
         }
+    }
 
-        document.getElementById('send').addEventListener('click', send);
-        textEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+    $('send').addEventListener('click', send);
+    textEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+</script>
 
-        // Простая защита от XSS при выводе
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, c => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
-        }
-    </script>
 </body>
 </html>

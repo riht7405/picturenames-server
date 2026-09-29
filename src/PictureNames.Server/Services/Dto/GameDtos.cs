@@ -18,6 +18,8 @@ public enum RevealOutcome
     Ignored
 }
 
+public record RevealResult(RevealOutcome Outcome, int BonusSeconds);
+
 public record ClueDto(string Word, int Number, TeamColor Team);
 
 public record CardForSpymasterDto(
@@ -42,7 +44,10 @@ public record GameStateForOperativeDto(
     int GuessesMade,
     int GuessesAllowed,
     IReadOnlyList<CardForOperativeDto> Cards,
-    IReadOnlyList<TeamDto> Teams
+    IReadOnlyList<TeamDto> Teams,
+    DateTime ServerNowUtc,
+    DateTime? TurnDeadlineUtc,
+    DateTime? SpymasterDeadlineUtc
 );
 
 public record GameStateForSpymasterDto(
@@ -57,5 +62,8 @@ public record GameStateForSpymasterDto(
     int GuessesMade,
     int GuessesAllowed,
     IReadOnlyList<CardForSpymasterDto> Cards,
-    IReadOnlyList<TeamDto> Teams
+    IReadOnlyList<TeamDto> Teams,
+    DateTime ServerNowUtc,
+    DateTime? TurnDeadlineUtc,
+    DateTime? SpymasterDeadlineUtc
 );

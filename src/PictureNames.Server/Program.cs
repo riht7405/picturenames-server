@@ -24,6 +24,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<ILobbyNotifier, SignalRLobbyNotifier>();
+builder.Services.AddSingleton<IGameNotifier, SignalRGameNotifier>();   // ← новое
+builder.Services.AddSingleton<TurnTimerService>();
+builder.Services.AddScoped<ImagePackScanner>();// ← новое
 
 builder.Services.AddHostedService<RoomCleanupService>();
 
@@ -35,27 +38,6 @@ app.UseStaticFiles();
 
 // === SignalR ===
 app.MapHub<GameHub>("/gamehub");
-
-// === SVG-заглушки картинок ===
-// Работает офлайн. Когда появятся настоящие картинки — просто замени URL в БД.
-app.MapGet("/img/{seed:int}.svg", (int seed) =>
-{
-    var hue = (seed * 47) % 360;
-    var svg = $"""
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
-          <defs>
-            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="hsl({hue}, 35%, 22%)"/>
-              <stop offset="100%" stop-color="hsl({(hue + 40) % 360}, 30%, 14%)"/>
-            </linearGradient>
-          </defs>
-          <rect width="300" height="300" fill="url(#g)"/>
-          <text x="150" y="165" text-anchor="middle" font-family="system-ui, sans-serif"
-                font-size="96" font-weight="300" fill="hsl({hue}, 60%, 75%)" opacity="0.85">{seed}</text>
-        </svg>
-        """;
-    return Results.Content(svg, "image/svg+xml");
-});
 
 // === REST: Лобби ===
 app.MapPost("/api/rooms", async (CreateRoomRequest req, RoomService rooms, CancellationToken ct) =>
@@ -145,29 +127,14 @@ app.MapGet("/api/rooms/{roomId:guid}/game/{playerId:guid}", async (Guid roomId, 
     }
 });
 
-// === Автомиграция + seed ===
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Применяем миграции при старте. Если БД нет — создастся.
-    // Если есть, но устарела — обновится.
     db.Database.Migrate();
 
-    // Seed картинок, если база пустая
-    if (!db.Images.Any())
-    {
-        for (int i = 1; i <= 50; i++)
-        {
-            db.Images.Add(new Image
-            {
-                Url = $"/img/{i}.svg",
-                AltText = $"Картинка {i}",
-                IsPublic = true
-            });
-        }
-        db.SaveChanges();
-    }
+    // Сканируем wwwroot/images/* и наполняем таблицу Images
+    var scanner = scope.ServiceProvider.GetRequiredService<ImagePackScanner>();
+    await scanner.ScanAsync();
 }
 
 // === REST для отладки ходов (SignalR-путь будет параллельно) ===
@@ -188,10 +155,22 @@ app.MapPost("/api/rooms/{roomId:guid}/reveal", async (
 {
     try
     {
-        var outcome = await game.RevealCardAsync(roomId, req.PlayerId, req.CardId, ct);
-        return Results.Ok(new { outcome = outcome.ToString() });
+        var result = await game.RevealCardAsync(roomId, req.PlayerId, req.CardId, ct);
+        return Results.Ok(new
+        {
+            outcome = result.Outcome.ToString(),
+            bonusSeconds = result.BonusSeconds
+        });
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+app.MapGet("/api/image-packs", (ImagePackScanner scanner) =>
+{
+    var packs = scanner.GetPacks()
+        .Select(p => new { name = p.Name, count = p.Count })
+        .ToList();
+    return Results.Ok(packs);
 });
 
 app.Run();

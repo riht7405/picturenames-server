@@ -2,126 +2,300 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PictureNames · Партия</title>
+    <link rel="stylesheet" href="/styles.css" />
     <style>
-        :root {
-            --bg: #0f0f12;
-            --card-bg: #17171c;
-            --border: #26262e;
-            --text: #e8e8e8;
-            --text-dim: #8a8a94;
-            --text-mute: #6a6a72;
-            --blue-bg: #14243d;
-            --blue-accent: #7ab8ff;
-            --red-bg: #3d1616;
-            --red-accent: #ff9a9a;
-            --neutral-bg: #2a2a36;
-            --neutral-accent: #8a8a94;
-            --assassin-bg: #150020;
-            --assassin-accent: #e066ff;
-        }
-        * { box-sizing: border-box; }
-        html, body { height: 100%; }
-        body {
-            font-family: system-ui, sans-serif;
-            background: var(--bg); color: var(--text);
-            margin: 0; padding: 1.5rem;
-            display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh;
+        /* === Игровое поле === */
+
+        .game-shell {
+            max-width: 960px;
         }
 
-        .board-column {
-            display: flex; flex-direction: column;
-            width: min(900px, 100%);
-        }
-
+        /* Топбар */
         .topbar {
-            width: 100%;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.8rem;
             padding: 0.8rem 1rem;
-            background: var(--card-bg);
+            background: var(--glass);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: var(--radius-sm);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: var(--shadow-card);
             margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
-        .topbar .left, .topbar .right { display: flex; gap: 1rem; align-items: center; }
+        .topbar .left,
+        .topbar .right {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
         .room-code {
-            font-family: monospace; font-size: 14px;
-            letter-spacing: 0.2em; color: var(--text-dim);
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 13px;
+            letter-spacing: 0.25em;
+            color: var(--text-dim);
         }
+
         .turn-indicator {
-            padding: 0.35rem 0.8rem; border-radius: 999px;
-            font-size: 13px; font-weight: 500;
-            letter-spacing: 0.03em;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
         }
-        .turn-indicator.Blue { background: var(--blue-bg); color: var(--blue-accent); }
-        .turn-indicator.Red { background: var(--red-bg); color: var(--red-accent); }
-        .turn-indicator.none { background: var(--neutral-bg); color: var(--text-dim); }
+        .turn-indicator.Blue {
+            background: var(--blue-bg);
+            color: var(--blue-accent);
+            box-shadow: 0 0 18px rgba(122, 184, 255, 0.3),
+                        inset 0 0 0 1px rgba(122, 184, 255, 0.3);
+        }
+        .turn-indicator.Red {
+            background: var(--red-bg);
+            color: var(--red-accent);
+            box-shadow: 0 0 18px rgba(255, 154, 154, 0.3),
+                        inset 0 0 0 1px rgba(255, 154, 154, 0.3);
+        }
+        .turn-indicator.none {
+            background: var(--neutral-bg);
+            color: var(--text-dim);
+        }
+
+        /* Таймер хода */
+        .turn-timer {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            background: var(--neutral-bg);
+            border: 1px solid var(--border);
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: var(--text);
+            transition: all 0.3s ease;
+            position: relative;
+            min-width: 88px;
+            justify-content: center;
+        }
+        .turn-timer[hidden] { display: none; }
+
+        .turn-timer.blue {
+            background: var(--blue-bg);
+            border-color: rgba(122, 184, 255, 0.35);
+            color: var(--blue-accent);
+        }
+        .turn-timer.red {
+            background: var(--red-bg);
+            border-color: rgba(255, 154, 154, 0.35);
+            color: var(--red-accent);
+        }
+
+        /* Овертайм: спаймастер просрочил свой бюджет, ещё не дал подсказку,
+           и время оперативников «сгорает» */
+        .turn-timer.overtime {
+            background: linear-gradient(180deg, #1a0a1f, #0f0015);
+            border-color: rgba(230, 100, 255, 0.7);
+            color: #e066ff;
+            box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+                        inset 0 0 10px rgba(200, 60, 230, 0.25);
+            animation: timer-overtime-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes timer-overtime-pulse {
+            0%, 100% {
+                box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+                            inset 0 0 10px rgba(200, 60, 230, 0.25);
+            }
+            50% {
+                box-shadow: 0 0 32px rgba(230, 100, 255, 0.9),
+                            inset 0 0 16px rgba(230, 100, 255, 0.5);
+            }
+        }
+
+        /* Последние 10 секунд */
+        .turn-timer.urgent {
+            animation: timer-urgent 0.6s ease-in-out infinite;
+        }
+        @keyframes timer-urgent {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Всплывающий бонус "+15" */
+        .timer-bonus {
+            position: absolute;
+            top: -6px;
+            right: -8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ok);
+            background: rgba(10, 30, 15, 0.9);
+            border: 1px solid rgba(110, 232, 154, 0.5);
+            padding: 1px 6px;
+            border-radius: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(0);
+            transition: opacity 0.2s ease;
+        }
+        .timer-bonus.show {
+            animation: bonus-float 1.4s ease-out forwards;
+        }
+        @keyframes bonus-float {
+            0% { opacity: 0; transform: translateY(0) scale(0.7); }
+            15% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+            100% { opacity: 0; transform: translateY(-22px) scale(1); }
+        }
 
         .score {
-            display: flex; gap: 0.6rem; font-family: monospace; font-size: 14px;
+            display: flex;
+            gap: 0.7rem;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
         }
-        .score .Blue { color: var(--blue-accent); }
-        .score .Red { color: var(--red-accent); }
+        .score .Blue {
+            color: var(--blue-accent);
+            text-shadow: 0 0 12px rgba(122, 184, 255, 0.4);
+        }
+        .score .Red {
+            color: var(--red-accent);
+            text-shadow: 0 0 12px rgba(255, 154, 154, 0.4);
+        }
 
         .role-badge {
-            font-size: 12px; text-transform: uppercase;
-            letter-spacing: 0.08em; color: var(--text-dim);
-        }
-        .role-badge.blue { color: var(--blue-accent); }
-        .role-badge.red { color: var(--red-accent); }
-
-        .btn-exit {
-            font: inherit; font-size: 12px;
-            padding: 0.35rem 0.7rem;
-            background: var(--bg); color: var(--text-dim);
-            border: 1px solid var(--border); border-radius: 6px;
-            cursor: pointer;
-        }
-        .btn-exit:hover { color: var(--text); border-color: #3a3a48; }
-
-        .clue-panel {
-            width: 100%;
-            background: var(--card-bg);
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.8rem 1rem;
-            margin-bottom: 1rem;
-            display: flex; justify-content: space-between; align-items: center;
+        }
+        .role-badge.blue {
+            color: var(--blue-accent);
+            border-color: rgba(122, 184, 255, 0.25);
+            background: rgba(122, 184, 255, 0.06);
+        }
+        .role-badge.red {
+            color: var(--red-accent);
+            border-color: rgba(255, 154, 154, 0.25);
+            background: rgba(255, 154, 154, 0.06);
+        }
+
+        /* Панель подсказки */
+        .clue-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             gap: 1rem;
+            padding: 0.9rem 1.1rem;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            min-height: 60px;
         }
         .clue-panel.hidden { display: none; }
+
         .clue-display {
-            font-family: monospace; font-size: 18px;
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 17px;
             color: var(--text);
             letter-spacing: 0.05em;
         }
-        .clue-display .num { color: var(--text-dim); margin-left: 0.5rem; }
-        .clue-display .team-blue { color: var(--blue-accent); }
-        .clue-display .team-red { color: var(--red-accent); }
+        .clue-display .num {
+            color: var(--text-dim);
+            margin-left: 0.5rem;
+        }
+        .clue-display .team-blue {
+            color: var(--blue-accent);
+            text-shadow: 0 0 14px rgba(122, 184, 255, 0.4);
+        }
+        .clue-display .team-red {
+            color: var(--red-accent);
+            text-shadow: 0 0 14px rgba(255, 154, 154, 0.4);
+        }
 
-        .clue-controls { display: flex; gap: 0.5rem; align-items: center; }
-        .clue-inputs { display: flex; gap: 0.5rem; align-items: center; }
+        .clue-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .clue-inputs {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
         .clue-inputs input {
-            font: inherit; padding: 0.5rem 0.7rem;
-            background: var(--bg); color: var(--text);
-            border: 1px solid var(--border); border-radius: 6px;
+            font: inherit;
+            font-size: 14px;
+            padding: 0.55rem 0.75rem;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .clue-inputs input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
         }
         .clue-inputs input[type="text"] { width: 180px; }
         .clue-inputs input[type="number"] { width: 70px; }
-        .clue-controls button {
-            font: inherit; padding: 0.5rem 1rem;
-            background: #2a2a36; color: var(--text);
-            border: 1px solid #3a3a48; border-radius: 6px;
-            cursor: pointer;
-        }
-        .clue-controls button:hover:not(:disabled) { background: #353542; }
-        .clue-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
-        #btn-end-turn {
-            background: #3a2a1a; border-color: #5a4a2e; color: #ffcf9a;
-        }
-        #btn-end-turn:hover { background: #4a3a23; }
 
+        .clue-controls button {
+            font: inherit;
+            font-size: 14px;
+            padding: 0.55rem 1.1rem;
+            background: linear-gradient(180deg, #2e2e3c, #23232e);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .clue-controls button:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: #fff;
+            background: linear-gradient(180deg, #353545, #282834);
+        }
+        .clue-controls button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #btn-end-turn {
+            background: linear-gradient(180deg, #3a2a1a, #2b1f13);
+            border-color: rgba(255, 207, 122, 0.35);
+            color: var(--warn);
+        }
+        #btn-end-turn:hover {
+            background: linear-gradient(180deg, #4a3a23, #3a2a1a);
+            border-color: rgba(255, 207, 122, 0.7);
+            color: #ffe4b0;
+            box-shadow: 0 0 22px rgba(255, 207, 122, 0.2);
+        }
+
+        /* Игровое поле */
         .board {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -132,39 +306,52 @@
         .card {
             position: relative;
             aspect-ratio: 1 / 1;
-            background: var(--card-bg);
-            border-radius: 10px;
+            background: var(--glass-solid);
+            border-radius: var(--radius-sm);
             overflow: hidden;
             cursor: default;
-            transition: transform 0.1s ease, box-shadow 0.15s ease;
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        box-shadow 0.2s ease,
+                        border-color 0.2s ease;
             border: 2px solid transparent;
         }
         .card img {
-            width: 100%; height: 100%;
-            object-fit: cover; display: block;
-            user-select: none; -webkit-user-drag: none;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            user-select: none;
+            -webkit-user-drag: none;
         }
-        .card.revealable { cursor: pointer; }
-        .card.revealable:hover { transform: scale(1.02); }
 
+        .card.revealable { cursor: pointer; }
+        .card.revealable:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6),
+                        0 0 30px rgba(122, 184, 255, 0.15);
+            border-color: rgba(122, 184, 255, 0.4);
+        }
+
+        /* Спаймастер */
         .card.spymaster .tint {
-            position: absolute; inset: 0;
+            position: absolute;
+            inset: 0;
             mix-blend-mode: multiply;
             pointer-events: none;
         }
         .card.spymaster.blue {
-            box-shadow: 0 0 14px rgba(80, 150, 255, 0.65),
-                        inset 0 0 10px rgba(80, 150, 255, 0.35);
-            border-color: rgba(80, 150, 255, 0.7);
+            box-shadow: 0 0 14px rgba(80, 150, 255, 0.55),
+                        inset 0 0 10px rgba(80, 150, 255, 0.3);
+            border-color: rgba(80, 150, 255, 0.65);
         }
         .card.spymaster.red {
-            box-shadow: 0 0 14px rgba(255, 100, 100, 0.65),
-                        inset 0 0 10px rgba(255, 100, 100, 0.35);
-            border-color: rgba(255, 100, 100, 0.7);
+            box-shadow: 0 0 14px rgba(255, 100, 100, 0.55),
+                        inset 0 0 10px rgba(255, 100, 100, 0.3);
+            border-color: rgba(255, 100, 100, 0.65);
         }
         .card.spymaster.neutral {
-            box-shadow: 0 0 10px rgba(140, 140, 150, 0.4);
-            border-color: rgba(140, 140, 150, 0.5);
+            box-shadow: 0 0 10px rgba(140, 140, 150, 0.35);
+            border-color: rgba(140, 140, 150, 0.45);
         }
         .card.spymaster.assassin {
             box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
@@ -182,81 +369,150 @@
                             inset 0 0 25px rgba(230, 100, 255, 0.9);
             }
         }
-        @media (prefers-reduced-motion: reduce) {
-            .card.spymaster.assassin { animation: none; }
-        }
-        .card.spymaster.blue     .tint { background: rgba(80, 150, 255, 0.7); }
-        .card.spymaster.red      .tint { background: rgba(255, 100, 100, 0.7); }
-        .card.spymaster.neutral  .tint { background: rgba(120, 120, 130, 0.6); }
+
+        .card.spymaster.blue .tint { background: rgba(80, 150, 255, 0.7); }
+        .card.spymaster.red .tint { background: rgba(255, 100, 100, 0.7); }
+        .card.spymaster.neutral .tint { background: rgba(120, 120, 130, 0.6); }
         .card.spymaster.assassin .tint { background: rgba(140, 20, 180, 0.9); }
 
-        .card.revealed.blue     { background: var(--blue-bg); border-color: var(--blue-accent);
-                                  box-shadow: 0 0 22px rgba(80, 150, 255, 0.45); }
-        .card.revealed.red      { background: var(--red-bg); border-color: var(--red-accent);
-                                  box-shadow: 0 0 22px rgba(255, 100, 100, 0.45); }
-        .card.revealed.neutral  { background: var(--neutral-bg); border-color: var(--neutral-accent);
-                                  box-shadow: 0 0 12px rgba(140, 140, 150, 0.3); }
-        .card.revealed.assassin { background: var(--assassin-bg); border-color: var(--assassin-accent);
-                                  box-shadow: 0 0 35px rgba(200, 60, 230, 0.9); }
+        /* Открытые карты */
+        .card.revealed.blue {
+            background: var(--blue-bg);
+            border-color: var(--blue-accent);
+            box-shadow: 0 0 22px rgba(80, 150, 255, 0.45);
+        }
+        .card.revealed.red {
+            background: var(--red-bg);
+            border-color: var(--red-accent);
+            box-shadow: 0 0 22px rgba(255, 100, 100, 0.45);
+        }
+        .card.revealed.neutral {
+            background: var(--neutral-bg);
+            border-color: var(--neutral-accent);
+            box-shadow: 0 0 12px rgba(140, 140, 150, 0.3);
+        }
+        .card.revealed.assassin {
+            background: var(--assassin-bg);
+            border-color: var(--assassin-accent);
+            box-shadow: 0 0 35px rgba(200, 60, 230, 0.9);
+        }
         .card.revealed img { opacity: 0.35; }
         .card.revealed { cursor: default; }
 
         .card .badge {
-            position: absolute; top: 6px; right: 8px;
-            font-family: monospace; font-size: 11px;
-            padding: 2px 6px; border-radius: 4px;
-            background: rgba(0,0,0,0.6); color: #fff;
-            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
         }
         .card.revealed .badge { opacity: 1; }
 
+        /* Оверлей финиша */
         .finish-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.85);
-            display: grid; place-items: center;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 10, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: grid;
+            place-items: center;
             z-index: 100;
+            padding: 1rem;
+            animation: fadeIn 0.35s ease both;
         }
         .finish-overlay.hidden { display: none; }
+
         .finish-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2.5rem 3rem;
+            background: var(--glass);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: var(--shadow-hover);
+            max-width: 480px;
+            width: 100%;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .finish-card h1 {
+            font-weight: 300;
+            margin: 0 0 1rem;
+            letter-spacing: 0.05em;
+            font-size: 28px;
+        }
+        .finish-card p {
+            color: var(--text-dim);
+            margin: 0 0 1.5rem;
+            font-size: 14px;
+        }
+        .finish-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .finish-buttons > * { flex: 1; min-width: 140px; }
+
+        .status-line {
+            margin-top: 1rem;
+            font-size: 13px;
+            color: var(--text-mute);
+            min-height: 1.2rem;
+            text-align: center;
+            transition: color 0.2s ease;
+        }
+        .error-line {
+            margin-top: 0.5rem;
+            font-size: 13px;
+            color: var(--err);
+            min-height: 1.2rem;
             text-align: center;
         }
-        .finish-card h1 { font-weight: 300; margin: 0 0 1rem; letter-spacing: 0.05em; }
-        .finish-card p { color: var(--text-dim); margin: 0 0 1.5rem; }
-        .finish-buttons {
-            display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
-        }
-        .finish-card button {
-            font: inherit; padding: 0.7rem 1.5rem;
-            background: #2a2a36; color: var(--text);
-            border: 1px solid #3a3a48; border-radius: 6px; cursor: pointer;
-        }
-        .finish-card button:hover { background: #353542; }
-        .finish-card button.primary {
-            background: #1a3a1a; border-color: #2e5a2e; color: #9ae09a;
-        }
-        .finish-card button.primary:hover { background: #234a23; }
 
-        .status {
-            margin-top: 1rem; font-size: 13px; color: var(--text-mute);
-            min-height: 1.2rem; text-align: center;
+        @media (max-width: 640px) {
+            .board { gap: 0.4rem; }
+            .clue-inputs input[type="text"] { width: 130px; }
+            .topbar { font-size: 12px; }
+            .room-code { letter-spacing: 0.15em; }
+            .finish-card { padding: 1.8rem; }
+            .finish-card h1 { font-size: 22px; }
         }
-        .error {
-            margin-top: 0.5rem; font-size: 13px; color: #ff8a8a;
-            min-height: 1.2rem; text-align: center;
+
+        @media (prefers-reduced-motion: reduce) {
+            .card.spymaster.assassin { animation: none; }
+            .turn-timer.overtime { animation: none; }
+            .turn-timer.urgent { animation: none; }
         }
     </style>
 </head>
 <body>
 
-<div class="board-column">
+<div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<main class="shell game-shell">
+
+    <!-- Топбар -->
     <div class="topbar">
         <div class="left">
             <span class="room-code" id="room-code">----</span>
             <span class="turn-indicator none" id="turn">—</span>
+            <div class="turn-timer" id="turn-timer" hidden>
+                <span id="timer-value">--:--</span>
+                <span class="timer-bonus" id="timer-bonus">+15</span>
+            </div>
         </div>
         <div class="right">
             <span class="score">
@@ -264,10 +520,11 @@
                 <span class="Red" id="score-red">0/8</span>
             </span>
             <span class="role-badge" id="my-role">—</span>
-            <button class="btn-exit" id="btn-exit">В лобби</button>
+            <button class="btn btn-sm btn-ghost" id="btn-exit">В лобби</button>
         </div>
     </div>
 
+    <!-- Панель подсказок -->
     <div class="clue-panel hidden" id="clue-panel">
         <div class="clue-display" id="clue-display">Подсказок нет</div>
         <div class="clue-controls">
@@ -280,19 +537,22 @@
         </div>
     </div>
 
+    <!-- Поле -->
     <div class="board" id="board"></div>
 
-    <div class="status" id="status">Подключение…</div>
-    <div class="error" id="error"></div>
-</div>
+    <div class="status-line" id="status">Подключение…</div>
+    <div class="error-line" id="error"></div>
 
+</main>
+
+<!-- Оверлей финиша -->
 <div class="finish-overlay hidden" id="finish">
     <div class="finish-card">
         <h1 id="finish-title">Партия завершена</h1>
         <p id="finish-sub">—</p>
         <div class="finish-buttons">
-            <button id="btn-go-lobby" class="primary">В лобби</button>
-            <button id="btn-leave-room">Покинуть комнату</button>
+            <button class="btn btn-success" id="btn-go-lobby">В лобби</button>
+            <button class="btn" id="btn-leave-room">Покинуть комнату</button>
         </div>
     </div>
 </div>
@@ -308,7 +568,6 @@
     }
 
     const $ = id => document.getElementById(id);
-    // Возврат в лобби со stay=1 — чтобы лобби не редиректило обратно в игру
     const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
 
     const state = {
@@ -327,6 +586,112 @@
         lastStateHash: null,
     };
 
+    // === Таймер хода ===
+    const timerState = {
+        serverOffsetMs: 0,
+        turnDeadlineMs: null,
+        spymasterDeadlineMs: null,
+    };
+
+    // Приводим строку к UTC, даже если сервер забыл 'Z' (защита от старых данных)
+    function parseUtcMs(str) {
+        if (!str) return null;
+        if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) str += 'Z';
+        const ms = new Date(str).getTime();
+        return isNaN(ms) ? null : ms;
+    }
+
+    function updateTimerState(data) {
+        const serverNow = parseUtcMs(data.serverNowUtc);
+        const clientNow = Date.now();
+        timerState.serverOffsetMs = (serverNow !== null) ? serverNow - clientNow : 0;
+
+        timerState.turnDeadlineMs = parseUtcMs(data.turnDeadlineUtc);
+        timerState.spymasterDeadlineMs = parseUtcMs(data.spymasterDeadlineUtc);
+    }
+
+    function tickTimer() {
+    const el = $('turn-timer');
+    const valueEl = $('timer-value');
+
+    if (state.gameState !== 'InGame') {
+        el.hidden = true;
+        return;
+    }
+
+    const now = Date.now() + timerState.serverOffsetMs;
+
+    // Выбор «личного» дедлайна по роли:
+    // - Спаймастер, пока не дал подсказку → его окно (SpymasterDeadline)
+    // - Как только подсказка дана или роль не спаймастер → общий дедлайн хода
+    const isSpymaster = state.myRole === 'Spymaster';
+    const hasClue = !!state.currentClue;
+
+    const usePersonalSpymasterWindow =
+        isSpymaster
+        && !hasClue
+        && timerState.spymasterDeadlineMs
+        && now < timerState.spymasterDeadlineMs;
+
+    const targetDeadline = usePersonalSpymasterWindow
+        ? timerState.spymasterDeadlineMs
+        : timerState.turnDeadlineMs;
+
+    if (!targetDeadline) {
+        el.hidden = true;
+        return;
+    }
+
+    el.hidden = false;
+
+    const remainingMs = targetDeadline - now;
+    const remaining = Math.max(0, Math.floor(remainingMs / 1000));
+
+    const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const ss = String(remaining % 60).padStart(2, '0');
+    valueEl.textContent = `${mm}:${ss}`;
+
+    // Команда-владелец хода
+    el.classList.remove('blue', 'red');
+    if (state.currentTurnTeam === 'Blue') el.classList.add('blue');
+    else if (state.currentTurnTeam === 'Red') el.classList.add('red');
+
+    // Овертайм:
+    // - Спаймастер просрочил своё окно и ещё не дал подсказку → он видит общий дедлайн + фиолетовый
+    // - Для всех остальных овертайм не показываем (они всегда в общем окне)
+    const overtime = isSpymaster
+        && !hasClue
+        && timerState.spymasterDeadlineMs
+        && now >= timerState.spymasterDeadlineMs;
+    el.classList.toggle('overtime', !!overtime);
+
+    // Срочность: последние 10 секунд
+    el.classList.toggle('urgent', remaining <= 10 && remaining > 0 && !overtime);
+
+    // Recovery: если таймер давно на нуле, а ход не сменился — тянем состояние
+    if (remaining <= 0) {
+        if (!tickTimer._stuckSince) tickTimer._stuckSince = Date.now();
+        else if (Date.now() - tickTimer._stuckSince > 3000) {
+            tickTimer._stuckSince = 0;
+            fetchAndRenderState(true);
+        }
+    } else {
+        tickTimer._stuckSince = 0;
+    }
+}
+
+    function flashBonus(seconds) {
+        const b = $('timer-bonus');
+        b.textContent = `+${seconds}`;
+        b.classList.remove('show');
+        void b.offsetWidth;
+        b.classList.add('show');
+    }
+
+    setInterval(tickTimer, 200);
+
+    // === Отрисовка ===
+
     function hashState(data) {
         return JSON.stringify({
             s: data.state,
@@ -334,7 +699,8 @@
             c: data.currentClue?.word,
             n: data.currentClue?.number,
             cs: data.cards.map(c => c.isRevealed ? 1 : 0).join(''),
-            sc: data.teams.map(t => t.score)
+            sc: data.teams.map(t => t.score),
+            d: data.turnDeadlineUtc,
         });
     }
 
@@ -350,6 +716,11 @@
         state.cards = data.cards;
         state.teams = data.teams;
         state.gameState = data.state;
+
+        if (data.state !== 'InGame') {
+            timerState.turnDeadlineMs = null;
+            timerState.spymasterDeadlineMs = null;
+        }
 
         $('room-code').textContent = data.code;
 
@@ -380,6 +751,9 @@
         renderCluePanel();
         renderBoard();
         renderFinish();
+
+        updateTimerState(data);
+        tickTimer();
     }
 
     function renderScore() {
@@ -529,7 +903,6 @@
         }
     }
 
-    // Запросить у сервера своё состояние и отрисовать, если что-то изменилось
     let fetching = false;
     async function fetchAndRenderState(force = false) {
         if (fetching) return;
@@ -571,13 +944,11 @@
             .withAutomaticReconnect()
             .build();
 
-        // Первичная персональная отправка при подключении
         conn.on('GameStateUpdated', data => {
             state.lastStateHash = hashState(data);
             render(data);
         });
 
-        // Пинг при изменениях — подтягиваем своё состояние через REST
         conn.on('StateChanged', () => fetchAndRenderState());
 
         conn.on('RevealOutcome', ({ outcome }) => {
@@ -591,7 +962,10 @@
             setTimeout(() => $('status').textContent = '', 3000);
         });
 
-        // Когда партия закрыта кнопкой "В лобби" — уходим в лобби
+        conn.on('TurnBonus', ({ seconds }) => {
+            flashBonus(seconds);
+        });
+
         conn.on('LobbyUpdated', lobby => {
             if (lobby.state === 'Lobby') {
                 window.location.href = lobbyUrl;
@@ -615,8 +989,6 @@
         state.connection = conn;
         $('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
 
-        // === Polling fallback: раз в 3 секунды подтягиваем состояние ===
-        // SignalR — быстрый путь, polling — страховка от протухших соединений.
         setInterval(() => fetchAndRenderState(), 3000);
     }
 
@@ -635,14 +1007,11 @@
         }
     };
 
-    // Единая кнопка "В лобби" — закрывает партию для всех
     async function goToLobby() {
         $('error').textContent = '';
         try {
             await state.connection.invoke('ReturnToLobby', roomId, playerId);
-            // После этого сервер разошлёт LobbyUpdated → редирект сработает сам
         } catch (e) {
-            // Если что-то не так — уходим вручную
             window.location.href = lobbyUrl;
         }
     }
@@ -650,7 +1019,6 @@
     $('btn-exit').onclick = goToLobby;
     $('btn-go-lobby').onclick = goToLobby;
 
-    // Покинуть комнату полностью
     async function leaveRoomCompletely() {
         $('error').textContent = '';
         try {

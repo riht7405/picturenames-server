@@ -54,6 +54,12 @@ namespace PictureNames.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("BonusPerCorrectSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FirstSpymasterSeconds")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("GridSize")
                         .HasColumnType("INTEGER");
 
@@ -61,8 +67,14 @@ namespace PictureNames.Server.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("OperativeSeconds")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("RoomId")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("SpymasterSeconds")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("TimerEnabled")
                         .HasColumnType("INTEGER");
@@ -206,8 +218,20 @@ namespace PictureNames.Server.Migrations
                     b.Property<int>("GuessesAllowed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("SpymasterDeadlineUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("State")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("TurnDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TurnNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("TurnStartedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

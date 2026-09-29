@@ -9,10 +9,12 @@ namespace PictureNames.Server.Services;
 public class GameService
 {
     private readonly AppDbContext _db;
+    private readonly TurnTimerService _timer;
 
-    public GameService(AppDbContext db)
+    public GameService(AppDbContext db, TurnTimerService timer)
     {
         _db = db;
+        _timer = timer;
     }
 
     // === Генерация поля ===
@@ -20,6 +22,7 @@ public class GameService
     public async Task GenerateFieldAsync(Guid roomId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
+            .Include(r => r.Settings)
             .Include(r => r.Teams)
             .FirstOrDefaultAsync(r => r.Id == roomId, ct)
             ?? throw new InvalidOperationException("Комната не найдена.");
@@ -41,11 +44,18 @@ public class GameService
             (colors[i], colors[j]) = (colors[j], colors[i]);
         }
 
-        var allImages = await _db.Images.ToListAsync(ct);
-        if (allImages.Count < 25)
-            throw new InvalidOperationException($"В базе {allImages.Count} картинок, нужно минимум 25.");
+        var pack = room.Settings.ImagePack ?? "default";
 
-        var images = allImages
+        var poolImages = await _db.Images
+            .Where(i => i.Tags == pack && i.IsPublic)
+            .ToListAsync(ct);
+
+        if (poolImages.Count < 25)
+            throw new InvalidOperationException(
+                $"В наборе «{pack}» только {poolImages.Count} картинок, нужно минимум 25. " +
+                $"Положи больше в wwwroot/images/{pack}/ и перезапусти сервер.");
+
+        var images = poolImages
             .OrderBy(_ => Random.Shared.Next())
             .Take(25)
             .ToList();
@@ -74,7 +84,11 @@ public class GameService
         room.ClueNumber = null;
         room.ClueTeamId = null;
 
+        room.TurnNumber = 0;
+        ApplyTurnTimer(room, room.Settings);
+
         await _db.SaveChangesAsync(ct);
+        ScheduleTimerFor(room);
     }
 
     // === Подсказка ===
@@ -82,6 +96,7 @@ public class GameService
     public async Task GiveClueAsync(Guid roomId, Guid playerId, string word, int number, CancellationToken ct = default)
     {
         var room = await _db.Rooms
+            .Include(r => r.Settings)
             .Include(r => r.Teams)
             .Include(r => r.Players)
             .FirstOrDefaultAsync(r => r.Id == roomId, ct)
@@ -116,6 +131,23 @@ public class GameService
         room.GuessesAllowed = number;
         room.GuessCount = 0;
 
+        // Пересчёт дедлайна: оперативники получают B_o секунд с этого момента,
+        // но не больше жёсткого капа T0 + B_s + B_o.
+        if (room.Settings.TimerEnabled
+            && room.TurnDeadlineUtc.HasValue
+            && room.TurnStartedAtUtc.HasValue)
+        {
+            var bS = room.TurnNumber == 0
+                ? room.Settings.FirstSpymasterSeconds
+                : room.Settings.SpymasterSeconds;
+            var bO = room.Settings.OperativeSeconds;
+
+            var turnStart = DateTime.SpecifyKind(room.TurnStartedAtUtc.Value, DateTimeKind.Utc);
+            var hardCap = turnStart.AddSeconds(bS + bO);
+            var natural = DateTime.UtcNow.AddSeconds(bO);
+            room.TurnDeadlineUtc = natural < hardCap ? natural : hardCap;
+        }
+
         _db.Moves.Add(new Move
         {
             RoomId = roomId,
@@ -130,13 +162,15 @@ public class GameService
         });
 
         await _db.SaveChangesAsync(ct);
+        ScheduleTimerFor(room);
     }
 
     // === Открытие карты ===
 
-    public async Task<RevealOutcome> RevealCardAsync(Guid roomId, Guid playerId, Guid cardId, CancellationToken ct = default)
+    public async Task<RevealResult> RevealCardAsync(Guid roomId, Guid playerId, Guid cardId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
+            .Include(r => r.Settings)
             .Include(r => r.Teams)
             .Include(r => r.Players)
             .Include(r => r.Cards)
@@ -171,6 +205,7 @@ public class GameService
         var currentTeamColor = currentTeam.Color;
 
         RevealOutcome outcome;
+        int bonusApplied = 0;
 
         if (card.Color == CardColor.Assassin)
         {
@@ -182,6 +217,14 @@ public class GameService
             outcome = RevealOutcome.Correct;
             currentTeam.Score++;
 
+            // Бонус за верный ответ
+            if (room.Settings.BonusPerCorrectSeconds > 0 && room.TurnDeadlineUtc.HasValue)
+            {
+                bonusApplied = room.Settings.BonusPerCorrectSeconds;
+                var deadline = DateTime.SpecifyKind(room.TurnDeadlineUtc.Value, DateTimeKind.Utc);
+                room.TurnDeadlineUtc = deadline.AddSeconds(bonusApplied);
+            }
+
             var totalOwnCards = room.Cards.Count(c => CardColorMatchesTeam(c.Color, currentTeamColor));
             if (currentTeam.Score >= totalOwnCards)
                 room.State = RoomState.Finished;
@@ -189,12 +232,12 @@ public class GameService
         else if (card.Color == CardColor.Neutral)
         {
             outcome = RevealOutcome.Neutral;
-            EndTurn(room);
+            EndTurn(room, room.Settings);
         }
         else
         {
             outcome = RevealOutcome.WrongTeam;
-            EndTurn(room);
+            EndTurn(room, room.Settings);
         }
 
         _db.Moves.Add(new Move
@@ -206,12 +249,15 @@ public class GameService
             {
                 cardId,
                 color = card.Color.ToString(),
-                outcome = outcome.ToString()
+                outcome = outcome.ToString(),
+                bonus = bonusApplied
             })
         });
 
         await _db.SaveChangesAsync(ct);
-        return outcome;
+        ScheduleTimerFor(room);
+
+        return new RevealResult(outcome, bonusApplied);
     }
 
     // === Завершение хода вручную ===
@@ -219,6 +265,7 @@ public class GameService
     public async Task EndTurnAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
+            .Include(r => r.Settings)
             .Include(r => r.Teams)
             .Include(r => r.Players)
             .FirstOrDefaultAsync(r => r.Id == roomId, ct)
@@ -247,15 +294,39 @@ public class GameService
             Payload = null
         });
 
-        EndTurn(room);
+        EndTurn(room, room.Settings);
         await _db.SaveChangesAsync(ct);
+        ScheduleTimerFor(room);
+    }
+
+    // === Автоматическое завершение хода (из серверного таймера) ===
+
+    // Проверяет, что дедлайн не изменился с момента планирования (защита от гонок).
+    public async Task<bool> EndTurnAutoAsync(Guid roomId, DateTime expectedDeadlineUtc, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Settings)
+            .Include(r => r.Teams)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct);
+
+        if (room is null || room.State != RoomState.InGame) return false;
+        if (room.TurnDeadlineUtc is null) return false;
+
+        var stored = DateTime.SpecifyKind(room.TurnDeadlineUtc.Value, DateTimeKind.Utc);
+        var expected = DateTime.SpecifyKind(expectedDeadlineUtc, DateTimeKind.Utc);
+
+        // Если дедлайн уже поменялся (кто-то успел) — таймер устарел
+        var diff = Math.Abs((stored - expected).TotalSeconds);
+        if (diff > 1.0) return false;
+
+        EndTurn(room, room.Settings);
+        await _db.SaveChangesAsync(ct);
+        ScheduleTimerFor(room);
+        return true;
     }
 
     // === Возврат в лобби ===
 
-    // Закрывает партию: удаляет карты, обнуляет счёт и подсказки,
-    // переводит комнату в Lobby. Может вызвать любой игрок.
-    // Хост потом жмёт "Начать игру" в лобби.
     public async Task ResetToLobbyAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
@@ -281,7 +352,11 @@ public class GameService
         room.ClueNumber = null;
         room.ClueTeamId = null;
 
-        // Spectator → Operative: в новой партии все играют
+        room.TurnNumber = 0;
+        room.TurnStartedAtUtc = null;
+        room.SpymasterDeadlineUtc = null;
+        room.TurnDeadlineUtc = null;
+
         foreach (var p in room.Players)
         {
             if (p.Role == PlayerRole.Spectator)
@@ -289,6 +364,7 @@ public class GameService
         }
 
         await _db.SaveChangesAsync(ct);
+        _timer.CancelTimer(roomId);
     }
 
     // === Сборка состояния ===
@@ -309,7 +385,10 @@ public class GameService
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
             state.YourTeam, state.YourRole, state.IsHost,
             state.CurrentClue, state.GuessesMade, state.GuessesAllowed,
-            cards, state.Teams
+            cards, state.Teams,
+            DateTime.UtcNow,
+            EnsureUtc(state.TurnDeadlineUtc),
+            EnsureUtc(state.SpymasterDeadlineUtc)
         );
     }
 
@@ -327,7 +406,10 @@ public class GameService
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
             state.YourTeam, state.YourRole, state.IsHost,
             state.CurrentClue, state.GuessesMade, state.GuessesAllowed,
-            cards, state.Teams
+            cards, state.Teams,
+            DateTime.UtcNow,
+            EnsureUtc(state.TurnDeadlineUtc),
+            EnsureUtc(state.SpymasterDeadlineUtc)
         );
     }
 
@@ -338,7 +420,8 @@ public class GameService
         TeamColor? CurrentTurnTeam, TeamColor? YourTeam, PlayerRole YourRole,
         bool IsHost,
         ClueDto? CurrentClue, int GuessesMade, int GuessesAllowed,
-        List<InternalCard> Cards, List<TeamDto> Teams
+        List<InternalCard> Cards, List<TeamDto> Teams,
+        DateTime? TurnDeadlineUtc, DateTime? SpymasterDeadlineUtc
     );
 
     private async Task<InternalState> BuildStateAsync(Guid roomId, Guid playerId, CancellationToken ct)
@@ -375,7 +458,6 @@ public class GameService
             ))
             .ToList();
 
-        // Материализуем коллекции ДО проекции — иначе EF ломается на вложенных Where
         var teamsList = room.Teams.ToList();
 
         var teams = teamsList
@@ -387,8 +469,45 @@ public class GameService
             room.Id, room.Code, room.State,
             currentTurnTeam, yourTeam, player.Role, player.IsHost,
             clue, room.GuessCount, room.GuessesAllowed,
-            cards, teams
+            cards, teams,
+            room.TurnDeadlineUtc, room.SpymasterDeadlineUtc
         );
+    }
+
+    // === Таймер ===
+
+    // Пересчитать дедлайны для только что начавшегося хода.
+    private static void ApplyTurnTimer(Room room, GameSettings settings)
+    {
+        if (!settings.TimerEnabled)
+        {
+            room.TurnStartedAtUtc = null;
+            room.SpymasterDeadlineUtc = null;
+            room.TurnDeadlineUtc = null;
+            return;
+        }
+
+        var bS = room.TurnNumber == 0 ? settings.FirstSpymasterSeconds : settings.SpymasterSeconds;
+        var bO = settings.OperativeSeconds;
+        var now = DateTime.UtcNow;
+
+        room.TurnStartedAtUtc = now;
+        room.SpymasterDeadlineUtc = now.AddSeconds(bS);
+        room.TurnDeadlineUtc = now.AddSeconds(bS + bO);
+    }
+
+    // Перепланировать серверный таймер после SaveChanges.
+    private void ScheduleTimerFor(Room room)
+    {
+        if (room.State == RoomState.InGame && room.TurnDeadlineUtc.HasValue)
+        {
+            var deadline = DateTime.SpecifyKind(room.TurnDeadlineUtc.Value, DateTimeKind.Utc);
+            _timer.ScheduleTurnEnd(room.Id, deadline);
+        }
+        else
+        {
+            _timer.CancelTimer(room.Id);
+        }
     }
 
     // === Вспомогательные ===
@@ -397,7 +516,7 @@ public class GameService
         (card == CardColor.Blue && team == TeamColor.Blue) ||
         (card == CardColor.Red && team == TeamColor.Red);
 
-    private static void EndTurn(Room room)
+    private static void EndTurn(Room room, GameSettings settings)
     {
         var currentTeamId = room.CurrentTurnTeamId!.Value;
         var other = room.Teams.First(t => t.Id != currentTeamId);
@@ -407,5 +526,14 @@ public class GameService
         room.ClueWord = null;
         room.ClueNumber = null;
         room.ClueTeamId = null;
+
+        room.TurnNumber++;
+        ApplyTurnTimer(room, settings);
     }
+
+    // SQLite не хранит DateTimeKind. При чтении даты становятся Unspecified,
+    // и JSON-сериализатор пишет их без 'Z'. Клиент парсит как локальное — и промахивается
+    // на разницу часовых поясов. Принудительно ставим Kind=Utc.
+    private static DateTime? EnsureUtc(DateTime? dt)
+        => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
 }
