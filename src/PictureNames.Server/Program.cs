@@ -27,6 +27,7 @@ builder.Services.AddSingleton<ILobbyNotifier, SignalRLobbyNotifier>();
 builder.Services.AddSingleton<IGameNotifier, SignalRGameNotifier>();   // ← новое
 builder.Services.AddSingleton<TurnTimerService>();
 builder.Services.AddScoped<ImagePackScanner>();// ← новое
+builder.Services.AddSingleton<VoteService>();
 
 builder.Services.AddHostedService<RoomCleanupService>();
 
@@ -98,6 +99,20 @@ app.MapPost("/api/rooms/{roomId:guid}/role", async (Guid roomId, AssignRoleReque
     catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
+app.MapPut("/api/rooms/{roomId:guid}/settings", async (
+    Guid roomId, UpdateSettingsRequest req, RoomService rooms, CancellationToken ct) =>
+{
+    try
+    {
+        var lobby = await rooms.UpdateSettingsAsync(roomId, req, ct);
+        return Results.Ok(lobby);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
 // === REST: Партия ===
 app.MapPost("/api/rooms/{roomId:guid}/start", async (Guid roomId, StartGameRequest req, RoomService rooms, CancellationToken ct) =>
 {
@@ -149,6 +164,8 @@ app.MapPost("/api/rooms/{roomId:guid}/clue", async (
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
+
+
 
 app.MapPost("/api/rooms/{roomId:guid}/reveal", async (
     Guid roomId, RevealCardRequest req, GameService game, CancellationToken ct) =>

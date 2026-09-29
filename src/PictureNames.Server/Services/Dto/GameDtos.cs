@@ -8,6 +8,7 @@ public record StartGameRequest(Guid PlayerId);
 
 public record GiveClueRequest(Guid PlayerId, string Word, int Number);
 public record RevealCardRequest(Guid PlayerId, Guid CardId);
+public record ToggleVoteRequest(Guid PlayerId, Guid CardId);
 
 public enum RevealOutcome
 {
@@ -22,14 +23,29 @@ public record RevealResult(RevealOutcome Outcome, int BonusSeconds);
 
 public record ClueDto(string Word, int Number, TeamColor Team);
 
+public record VoteInfoDto(Guid PlayerId, string Color, bool IsMe);
+
 public record CardForSpymasterDto(
     Guid Id, int Position, string ImageUrl, string? AltText,
-    CardColor Color, bool IsRevealed
+    CardColor Color, bool IsRevealed,
+    IReadOnlyList<VoteInfoDto> Voters,
+    int VotersCount
 );
 
 public record CardForOperativeDto(
     Guid Id, int Position, string ImageUrl, string? AltText,
-    CardColor? Color, bool IsRevealed
+    CardColor? Color, bool IsRevealed,
+    IReadOnlyList<VoteInfoDto> Voters,
+    int VotersCount
+);
+
+public record ActiveVoteDto(
+    string Kind,          // "Card" | "EndTurn"
+    Guid? CardId,         // null для EndTurn
+    int VotesCount,
+    int VotesNeeded,
+    DateTime? DeadlineUtc,  // null пока порог не достигнут
+    IReadOnlyList<VoteInfoDto> Voters
 );
 
 public record GameStateForOperativeDto(
@@ -47,7 +63,8 @@ public record GameStateForOperativeDto(
     IReadOnlyList<TeamDto> Teams,
     DateTime ServerNowUtc,
     DateTime? TurnDeadlineUtc,
-    DateTime? SpymasterDeadlineUtc
+    DateTime? SpymasterDeadlineUtc,
+    ActiveVoteDto? ActiveVote
 );
 
 public record GameStateForSpymasterDto(
@@ -65,5 +82,6 @@ public record GameStateForSpymasterDto(
     IReadOnlyList<TeamDto> Teams,
     DateTime ServerNowUtc,
     DateTime? TurnDeadlineUtc,
-    DateTime? SpymasterDeadlineUtc
+    DateTime? SpymasterDeadlineUtc,
+    ActiveVoteDto? ActiveVote
 );

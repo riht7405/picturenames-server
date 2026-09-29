@@ -1,898 +1,1102 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PictureNames · Партия</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <style>
-        /* === Игровое поле === */
-
-        .game-shell {
-            max-width: 960px;
-        }
-
-        /* Топбар */
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.8rem;
-            padding: 0.8rem 1rem;
-            background: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: var(--shadow-card);
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }
-        .topbar .left,
-        .topbar .right {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .room-code {
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 13px;
-            letter-spacing: 0.25em;
-            color: var(--text-dim);
-        }
-
-        .turn-indicator {
-            padding: 0.35rem 0.85rem;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-        }
-        .turn-indicator.Blue {
-            background: var(--blue-bg);
-            color: var(--blue-accent);
-            box-shadow: 0 0 18px rgba(122, 184, 255, 0.3),
-                        inset 0 0 0 1px rgba(122, 184, 255, 0.3);
-        }
-        .turn-indicator.Red {
-            background: var(--red-bg);
-            color: var(--red-accent);
-            box-shadow: 0 0 18px rgba(255, 154, 154, 0.3),
-                        inset 0 0 0 1px rgba(255, 154, 154, 0.3);
-        }
-        .turn-indicator.none {
-            background: var(--neutral-bg);
-            color: var(--text-dim);
-        }
-
-        /* Таймер хода */
-        .turn-timer {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.35rem 0.85rem;
-            border-radius: 999px;
-            background: var(--neutral-bg);
-            border: 1px solid var(--border);
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 15px;
-            font-weight: 500;
-            letter-spacing: 0.06em;
-            color: var(--text);
-            transition: all 0.3s ease;
-            position: relative;
-            min-width: 88px;
-            justify-content: center;
-        }
-        .turn-timer[hidden] { display: none; }
-
-        .turn-timer.blue {
-            background: var(--blue-bg);
-            border-color: rgba(122, 184, 255, 0.35);
-            color: var(--blue-accent);
-        }
-        .turn-timer.red {
-            background: var(--red-bg);
-            border-color: rgba(255, 154, 154, 0.35);
-            color: var(--red-accent);
-        }
-
-        /* Овертайм: спаймастер просрочил свой бюджет, ещё не дал подсказку,
-           и время оперативников «сгорает» */
-        .turn-timer.overtime {
-            background: linear-gradient(180deg, #1a0a1f, #0f0015);
-            border-color: rgba(230, 100, 255, 0.7);
-            color: #e066ff;
-            box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
-                        inset 0 0 10px rgba(200, 60, 230, 0.25);
-            animation: timer-overtime-pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes timer-overtime-pulse {
-            0%, 100% {
-                box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
-                            inset 0 0 10px rgba(200, 60, 230, 0.25);
-            }
-            50% {
-                box-shadow: 0 0 32px rgba(230, 100, 255, 0.9),
-                            inset 0 0 16px rgba(230, 100, 255, 0.5);
-            }
-        }
-
-        /* Последние 10 секунд */
-        .turn-timer.urgent {
-            animation: timer-urgent 0.6s ease-in-out infinite;
-        }
-        @keyframes timer-urgent {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        /* Всплывающий бонус "+15" */
-        .timer-bonus {
-            position: absolute;
-            top: -6px;
-            right: -8px;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--ok);
-            background: rgba(10, 30, 15, 0.9);
-            border: 1px solid rgba(110, 232, 154, 0.5);
-            padding: 1px 6px;
-            border-radius: 6px;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(0);
-            transition: opacity 0.2s ease;
-        }
-        .timer-bonus.show {
-            animation: bonus-float 1.4s ease-out forwards;
-        }
-        @keyframes bonus-float {
-            0% { opacity: 0; transform: translateY(0) scale(0.7); }
-            15% { opacity: 1; transform: translateY(-4px) scale(1.1); }
-            100% { opacity: 0; transform: translateY(-22px) scale(1); }
-        }
-
-        .score {
-            display: flex;
-            gap: 0.7rem;
-            font-family: ui-monospace, monospace;
-            font-size: 13px;
-            letter-spacing: 0.05em;
-        }
-        .score .Blue {
-            color: var(--blue-accent);
-            text-shadow: 0 0 12px rgba(122, 184, 255, 0.4);
-        }
-        .score .Red {
-            color: var(--red-accent);
-            text-shadow: 0 0 12px rgba(255, 154, 154, 0.4);
-        }
-
-        .role-badge {
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border);
-        }
-        .role-badge.blue {
-            color: var(--blue-accent);
-            border-color: rgba(122, 184, 255, 0.25);
-            background: rgba(122, 184, 255, 0.06);
-        }
-        .role-badge.red {
-            color: var(--red-accent);
-            border-color: rgba(255, 154, 154, 0.25);
-            background: rgba(255, 154, 154, 0.06);
-        }
-
-        /* Панель подсказки */
-        .clue-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.1rem;
-            background: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: var(--shadow-card);
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            min-height: 60px;
-        }
-        .clue-panel.hidden { display: none; }
-
-        .clue-display {
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 17px;
-            color: var(--text);
-            letter-spacing: 0.05em;
-        }
-        .clue-display .num {
-            color: var(--text-dim);
-            margin-left: 0.5rem;
-        }
-        .clue-display .team-blue {
-            color: var(--blue-accent);
-            text-shadow: 0 0 14px rgba(122, 184, 255, 0.4);
-        }
-        .clue-display .team-red {
-            color: var(--red-accent);
-            text-shadow: 0 0 14px rgba(255, 154, 154, 0.4);
-        }
-
-        .clue-controls {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .clue-inputs {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        .clue-inputs input {
-            font: inherit;
-            font-size: 14px;
-            padding: 0.55rem 0.75rem;
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border-strong);
-            border-radius: 8px;
-            outline: none;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .clue-inputs input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
-        }
-        .clue-inputs input[type="text"] { width: 180px; }
-        .clue-inputs input[type="number"] { width: 70px; }
-
-        .clue-controls button {
-            font: inherit;
-            font-size: 14px;
-            padding: 0.55rem 1.1rem;
-            background: linear-gradient(180deg, #2e2e3c, #23232e);
-            color: var(--text);
-            border: 1px solid var(--border-strong);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .clue-controls button:hover:not(:disabled) {
-            border-color: var(--accent);
-            color: #fff;
-            background: linear-gradient(180deg, #353545, #282834);
-        }
-        .clue-controls button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        #btn-end-turn {
-            background: linear-gradient(180deg, #3a2a1a, #2b1f13);
-            border-color: rgba(255, 207, 122, 0.35);
-            color: var(--warn);
-        }
-        #btn-end-turn:hover {
-            background: linear-gradient(180deg, #4a3a23, #3a2a1a);
-            border-color: rgba(255, 207, 122, 0.7);
-            color: #ffe4b0;
-            box-shadow: 0 0 22px rgba(255, 207, 122, 0.2);
-        }
-
-        /* Игровое поле */
-        .board {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.6rem;
-            width: 100%;
-        }
-
-        .card {
-            position: relative;
-            aspect-ratio: 1 / 1;
-            background: var(--glass-solid);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            cursor: default;
-            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
-                        box-shadow 0.2s ease,
-                        border-color 0.2s ease;
-            border: 2px solid transparent;
-        }
-        .card img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-
-        .card.revealable { cursor: pointer; }
-        .card.revealable:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6),
-                        0 0 30px rgba(122, 184, 255, 0.15);
-            border-color: rgba(122, 184, 255, 0.4);
-        }
-
-        /* Спаймастер */
-        .card.spymaster .tint {
-            position: absolute;
-            inset: 0;
-            mix-blend-mode: multiply;
-            pointer-events: none;
-        }
-        .card.spymaster.blue {
-            box-shadow: 0 0 14px rgba(80, 150, 255, 0.55),
-                        inset 0 0 10px rgba(80, 150, 255, 0.3);
-            border-color: rgba(80, 150, 255, 0.65);
-        }
-        .card.spymaster.red {
-            box-shadow: 0 0 14px rgba(255, 100, 100, 0.55),
-                        inset 0 0 10px rgba(255, 100, 100, 0.3);
-            border-color: rgba(255, 100, 100, 0.65);
-        }
-        .card.spymaster.neutral {
-            box-shadow: 0 0 10px rgba(140, 140, 150, 0.35);
-            border-color: rgba(140, 140, 150, 0.45);
-        }
-        .card.spymaster.assassin {
-            box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
-                        inset 0 0 15px rgba(200, 60, 230, 0.7);
-            border-color: rgba(230, 100, 255, 1);
-            animation: assassin-pulse 2s ease-in-out infinite;
-        }
-        @keyframes assassin-pulse {
-            0%, 100% {
-                box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
-                            inset 0 0 15px rgba(200, 60, 230, 0.7);
-            }
-            50% {
-                box-shadow: 0 0 45px rgba(230, 100, 255, 1),
-                            inset 0 0 25px rgba(230, 100, 255, 0.9);
-            }
-        }
-
-        .card.spymaster.blue .tint { background: rgba(80, 150, 255, 0.7); }
-        .card.spymaster.red .tint { background: rgba(255, 100, 100, 0.7); }
-        .card.spymaster.neutral .tint { background: rgba(120, 120, 130, 0.6); }
-        .card.spymaster.assassin .tint { background: rgba(140, 20, 180, 0.9); }
-
-        /* Открытые карты */
-        .card.revealed.blue {
-            background: var(--blue-bg);
-            border-color: var(--blue-accent);
-            box-shadow: 0 0 22px rgba(80, 150, 255, 0.45);
-        }
-        .card.revealed.red {
-            background: var(--red-bg);
-            border-color: var(--red-accent);
-            box-shadow: 0 0 22px rgba(255, 100, 100, 0.45);
-        }
-        .card.revealed.neutral {
-            background: var(--neutral-bg);
-            border-color: var(--neutral-accent);
-            box-shadow: 0 0 12px rgba(140, 140, 150, 0.3);
-        }
-        .card.revealed.assassin {
-            background: var(--assassin-bg);
-            border-color: var(--assassin-accent);
-            box-shadow: 0 0 35px rgba(200, 60, 230, 0.9);
-        }
-        .card.revealed img { opacity: 0.35; }
-        .card.revealed { cursor: default; }
-
-        .card .badge {
-            position: absolute;
-            top: 6px;
-            right: 8px;
-            font-family: ui-monospace, monospace;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-        .card.revealed .badge { opacity: 1; }
-
-        /* Оверлей финиша */
-        .finish-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 5, 10, 0.75);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            display: grid;
-            place-items: center;
-            z-index: 100;
-            padding: 1rem;
-            animation: fadeIn 0.35s ease both;
-        }
-        .finish-overlay.hidden { display: none; }
-
-        .finish-card {
-            background: var(--glass);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius);
-            padding: 2.5rem;
-            text-align: center;
-            box-shadow: var(--shadow-hover);
-            max-width: 480px;
-            width: 100%;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-        .finish-card h1 {
-            font-weight: 300;
-            margin: 0 0 1rem;
-            letter-spacing: 0.05em;
-            font-size: 28px;
-        }
-        .finish-card p {
-            color: var(--text-dim);
-            margin: 0 0 1.5rem;
-            font-size: 14px;
-        }
-        .finish-buttons {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .finish-buttons > * { flex: 1; min-width: 140px; }
-
-        .status-line {
-            margin-top: 1rem;
-            font-size: 13px;
-            color: var(--text-mute);
-            min-height: 1.2rem;
-            text-align: center;
-            transition: color 0.2s ease;
-        }
-        .error-line {
-            margin-top: 0.5rem;
-            font-size: 13px;
-            color: var(--err);
-            min-height: 1.2rem;
-            text-align: center;
-        }
-
-        @media (max-width: 640px) {
-            .board { gap: 0.4rem; }
-            .clue-inputs input[type="text"] { width: 130px; }
-            .topbar { font-size: 12px; }
-            .room-code { letter-spacing: 0.15em; }
-            .finish-card { padding: 1.8rem; }
-            .finish-card h1 { font-size: 22px; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .card.spymaster.assassin { animation: none; }
-            .turn-timer.overtime { animation: none; }
-            .turn-timer.urgent { animation: none; }
-        }
-    </style>
-</head>
-<body>
-
-<div class="bg-orbs" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-</div>
-<div class="bg-grid" aria-hidden="true"></div>
-
-<main class="shell game-shell">
-
-    <!-- Топбар -->
-    <div class="topbar">
-        <div class="left">
-            <span class="room-code" id="room-code">----</span>
-            <span class="turn-indicator none" id="turn">—</span>
-            <div class="turn-timer" id="turn-timer" hidden>
-                <span id="timer-value">--:--</span>
-                <span class="timer-bonus" id="timer-bonus">+15</span>
-            </div>
-        </div>
-        <div class="right">
-            <span class="score">
-                <span class="Blue" id="score-blue">0/9</span>
-                <span class="Red" id="score-red">0/8</span>
-            </span>
-            <span class="role-badge" id="my-role">—</span>
-            <button class="btn btn-sm btn-ghost" id="btn-exit">В лобби</button>
-        </div>
-    </div>
-
-    <!-- Панель подсказок -->
-    <div class="clue-panel hidden" id="clue-panel">
-        <div class="clue-display" id="clue-display">Подсказок нет</div>
-        <div class="clue-controls">
-            <div class="clue-inputs" id="clue-inputs">
-                <input type="text" id="clue-word" placeholder="Слово" maxlength="30" />
-                <input type="number" id="clue-number" min="1" max="9" value="1" />
-                <button id="btn-clue">Дать подсказку</button>
-            </div>
-            <button id="btn-end-turn" style="display: none;">Закончить ход</button>
-        </div>
-    </div>
-
-    <!-- Поле -->
-    <div class="board" id="board"></div>
-
-    <div class="status-line" id="status">Подключение…</div>
-    <div class="error-line" id="error"></div>
-
-</main>
-
-<!-- Оверлей финиша -->
-<div class="finish-overlay hidden" id="finish">
-    <div class="finish-card">
-        <h1 id="finish-title">Партия завершена</h1>
-        <p id="finish-sub">—</p>
-        <div class="finish-buttons">
-            <button class="btn btn-success" id="btn-go-lobby">В лобби</button>
-            <button class="btn" id="btn-leave-room">Покинуть комнату</button>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-<script>
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('roomId');
-    const playerId = params.get('playerId');
-
-    if (!roomId || !playerId) {
-        window.location.href = '/lobby.html';
-    }
-
-    const $ = id => document.getElementById(id);
-    const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
-
-    const state = {
-        connection: null,
-        myRole: null,
-        myTeam: null,
-        isHost: false,
-        isSpectator: false,
-        currentTurnTeam: null,
-        currentClue: null,
-        guessesMade: 0,
-        guessesAllowed: 0,
-        cards: [],
-        teams: [],
-        gameState: null,
-        lastStateHash: null,
-    };
-
-    // === Таймер хода ===
-    const timerState = {
-        serverOffsetMs: 0,
-        turnDeadlineMs: null,
-        spymasterDeadlineMs: null,
-    };
-
-    // Приводим строку к UTC, даже если сервер забыл 'Z' (защита от старых данных)
-    function parseUtcMs(str) {
-        if (!str) return null;
-        if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) str += 'Z';
-        const ms = new Date(str).getTime();
-        return isNaN(ms) ? null : ms;
-    }
-
-    function updateTimerState(data) {
-        const serverNow = parseUtcMs(data.serverNowUtc);
-        const clientNow = Date.now();
-        timerState.serverOffsetMs = (serverNow !== null) ? serverNow - clientNow : 0;
-
-        timerState.turnDeadlineMs = parseUtcMs(data.turnDeadlineUtc);
-        timerState.spymasterDeadlineMs = parseUtcMs(data.spymasterDeadlineUtc);
-    }
-
-    function tickTimer() {
-    const el = $('turn-timer');
-    const valueEl = $('timer-value');
-
-    if (state.gameState !== 'InGame') {
-        el.hidden = true;
-        return;
-    }
-
-    const now = Date.now() + timerState.serverOffsetMs;
-
-    // Выбор «личного» дедлайна по роли:
-    // - Спаймастер, пока не дал подсказку → его окно (SpymasterDeadline)
-    // - Как только подсказка дана или роль не спаймастер → общий дедлайн хода
-    const isSpymaster = state.myRole === 'Spymaster';
-    const hasClue = !!state.currentClue;
-
-    const usePersonalSpymasterWindow =
-        isSpymaster
-        && !hasClue
-        && timerState.spymasterDeadlineMs
-        && now < timerState.spymasterDeadlineMs;
-
-    const targetDeadline = usePersonalSpymasterWindow
-        ? timerState.spymasterDeadlineMs
-        : timerState.turnDeadlineMs;
-
-    if (!targetDeadline) {
-        el.hidden = true;
-        return;
-    }
-
-    el.hidden = false;
-
-    const remainingMs = targetDeadline - now;
-    const remaining = Math.max(0, Math.floor(remainingMs / 1000));
-
-    const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-    const ss = String(remaining % 60).padStart(2, '0');
-    valueEl.textContent = `${mm}:${ss}`;
-
-    // Команда-владелец хода
-    el.classList.remove('blue', 'red');
-    if (state.currentTurnTeam === 'Blue') el.classList.add('blue');
-    else if (state.currentTurnTeam === 'Red') el.classList.add('red');
-
-    // Овертайм:
-    // - Спаймастер просрочил своё окно и ещё не дал подсказку → он видит общий дедлайн + фиолетовый
-    // - Для всех остальных овертайм не показываем (они всегда в общем окне)
-    const overtime = isSpymaster
-        && !hasClue
-        && timerState.spymasterDeadlineMs
-        && now >= timerState.spymasterDeadlineMs;
-    el.classList.toggle('overtime', !!overtime);
-
-    // Срочность: последние 10 секунд
-    el.classList.toggle('urgent', remaining <= 10 && remaining > 0 && !overtime);
-
-    // Recovery: если таймер давно на нуле, а ход не сменился — тянем состояние
-    if (remaining <= 0) {
-        if (!tickTimer._stuckSince) tickTimer._stuckSince = Date.now();
-        else if (Date.now() - tickTimer._stuckSince > 3000) {
-            tickTimer._stuckSince = 0;
-            fetchAndRenderState(true);
-        }
-    } else {
-        tickTimer._stuckSince = 0;
-    }
-}
-
-    function flashBonus(seconds) {
-        const b = $('timer-bonus');
-        b.textContent = `+${seconds}`;
-        b.classList.remove('show');
-        void b.offsetWidth;
-        b.classList.add('show');
-    }
-
-    setInterval(tickTimer, 200);
-
-    // === Отрисовка ===
-
-    function hashState(data) {
-        return JSON.stringify({
-            s: data.state,
-            t: data.currentTurnTeam,
-            c: data.currentClue?.word,
-            n: data.currentClue?.number,
-            cs: data.cards.map(c => c.isRevealed ? 1 : 0).join(''),
-            sc: data.teams.map(t => t.score),
-            d: data.turnDeadlineUtc,
-        });
-    }
-
-    function render(data) {
-        state.myRole = data.yourRole;
-        state.myTeam = data.yourTeam;
-        state.isHost = data.isHost || false;
-        state.isSpectator = data.yourRole === 'Spectator';
-        state.currentTurnTeam = data.currentTurnTeam;
-        state.currentClue = data.currentClue;
-        state.guessesMade = data.guessesMade;
-        state.guessesAllowed = data.guessesAllowed;
-        state.cards = data.cards;
-        state.teams = data.teams;
-        state.gameState = data.state;
-
-        if (data.state !== 'InGame') {
-            timerState.turnDeadlineMs = null;
-            timerState.spymasterDeadlineMs = null;
-        }
-
-        $('room-code').textContent = data.code;
-
-        const roleText = data.yourRole === 'Spymaster' ? 'Спаймастер'
-            : (data.yourRole === 'Spectator' ? 'Зритель' : 'Оперативник');
-        const roleEl = $('my-role');
-        roleEl.className = 'role-badge';
-        if (data.yourTeam === 'Blue') {
-            roleEl.textContent = roleText + ' · Синие';
-            roleEl.classList.add('blue');
-        } else if (data.yourTeam === 'Red') {
-            roleEl.textContent = roleText + ' · Красные';
-            roleEl.classList.add('red');
-        } else {
-            roleEl.textContent = roleText;
-        }
-
-        const turn = $('turn');
-        if (data.currentTurnTeam) {
-            turn.textContent = data.currentTurnTeam === 'Blue' ? 'Ход синих' : 'Ход красных';
-            turn.className = 'turn-indicator ' + data.currentTurnTeam;
-        } else {
-            turn.textContent = '—';
-            turn.className = 'turn-indicator none';
-        }
-
-        renderScore();
-        renderCluePanel();
-        renderBoard();
-        renderFinish();
-
-        updateTimerState(data);
-        tickTimer();
-    }
-
-    function renderScore() {
-        const blue = state.teams.find(t => t.color === 'Blue');
-        const red = state.teams.find(t => t.color === 'Red');
-        $('score-blue').textContent = `${blue?.score ?? 0}/9`;
-        $('score-red').textContent = `${red?.score ?? 0}/8`;
-    }
-
-    function renderCluePanel() {
-        const isSpymaster = state.myRole === 'Spymaster';
-        const isSpectator = state.isSpectator;
-        const isMyTurn = state.myTeam && state.currentTurnTeam
-            && state.myTeam === state.currentTurnTeam;
-        const canGiveClue = isSpymaster && isMyTurn && !state.currentClue;
-        const canEndTurn = !isSpymaster && !isSpectator && isMyTurn && !!state.currentClue;
-
-        if (isSpectator) {
-            $('clue-panel').classList.add('hidden');
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>PictureNames · Партия</title>
+		<link rel="stylesheet" href="/styles.css" />
+		<style>
+			.game-shell { max-width: 960px; }
+
+			.topbar {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 0.8rem;
+			padding: 0.8rem 1rem;
+			background: var(--glass);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			box-shadow: var(--shadow-card);
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+			}
+			.topbar .left,
+			.topbar .right {
+			display: flex;
+			gap: 0.8rem;
+			align-items: center;
+			flex-wrap: wrap;
+			}
+
+			.room-code {
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 13px;
+			letter-spacing: 0.25em;
+			color: var(--text-dim);
+			}
+
+			.turn-indicator {
+			padding: 0.35rem 0.85rem;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 500;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			transition: all 0.3s ease;
+			}
+			.turn-indicator.Blue {
+			background: var(--blue-bg);
+			color: var(--blue-accent);
+			box-shadow: 0 0 18px rgba(122, 184, 255, 0.3),
+			inset 0 0 0 1px rgba(122, 184, 255, 0.3);
+			}
+			.turn-indicator.Red {
+			background: var(--red-bg);
+			color: var(--red-accent);
+			box-shadow: 0 0 18px rgba(255, 154, 154, 0.3),
+			inset 0 0 0 1px rgba(255, 154, 154, 0.3);
+			}
+			.turn-indicator.none {
+			background: var(--neutral-bg);
+			color: var(--text-dim);
+			}
+
+			.turn-timer {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.35rem 0.85rem;
+			border-radius: 999px;
+			background: var(--neutral-bg);
+			border: 1px solid var(--border);
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 15px;
+			font-weight: 500;
+			letter-spacing: 0.06em;
+			color: var(--text);
+			transition: all 0.3s ease;
+			position: relative;
+			min-width: 88px;
+			justify-content: center;
+			}
+			.turn-timer[hidden] { display: none; }
+
+			.turn-timer.blue {
+			background: var(--blue-bg);
+			border-color: rgba(122, 184, 255, 0.35);
+			color: var(--blue-accent);
+			}
+			.turn-timer.red {
+			background: var(--red-bg);
+			border-color: rgba(255, 154, 154, 0.35);
+			color: var(--red-accent);
+			}
+
+			.turn-timer.overtime {
+			background: linear-gradient(180deg, #1a0a1f, #0f0015);
+			border-color: rgba(230, 100, 255, 0.7);
+			color: #e066ff;
+			box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+			inset 0 0 10px rgba(200, 60, 230, 0.25);
+			animation: timer-overtime-pulse 1.4s ease-in-out infinite;
+			}
+			@keyframes timer-overtime-pulse {
+			0%, 100% {
+			box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+			inset 0 0 10px rgba(200, 60, 230, 0.25);
+			}
+			50% {
+			box-shadow: 0 0 32px rgba(230, 100, 255, 0.9),
+			inset 0 0 16px rgba(230, 100, 255, 0.5);
+			}
+			}
+
+			.turn-timer.urgent {
+			animation: timer-urgent 0.6s ease-in-out infinite;
+			}
+			@keyframes timer-urgent {
+			0%, 100% { transform: scale(1); }
+			50% { transform: scale(1.05); }
+			}
+
+			.timer-bonus {
+			position: absolute;
+			top: -6px;
+			right: -8px;
+			font-size: 11px;
+			font-weight: 600;
+			color: var(--ok);
+			background: rgba(10, 30, 15, 0.9);
+			border: 1px solid rgba(110, 232, 154, 0.5);
+			padding: 1px 6px;
+			border-radius: 6px;
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(0);
+			transition: opacity 0.2s ease;
+			}
+			.timer-bonus.show {
+			animation: bonus-float 1.4s ease-out forwards;
+			}
+			@keyframes bonus-float {
+			0% { opacity: 0; transform: translateY(0) scale(0.7); }
+			15% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+			100% { opacity: 0; transform: translateY(-22px) scale(1); }
+			}
+
+			.score {
+			display: flex;
+			gap: 0.7rem;
+			font-family: ui-monospace, monospace;
+			font-size: 13px;
+			letter-spacing: 0.05em;
+			}
+			.score .Blue {
+			color: var(--blue-accent);
+			text-shadow: 0 0 12px rgba(122, 184, 255, 0.4);
+			}
+			.score .Red {
+			color: var(--red-accent);
+			text-shadow: 0 0 12px rgba(255, 154, 154, 0.4);
+			}
+
+			.role-badge {
+			font-size: 11px;
+			font-weight: 500;
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			color: var(--text-dim);
+			padding: 0.3rem 0.6rem;
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border);
+			}
+			.role-badge.blue {
+			color: var(--blue-accent);
+			border-color: rgba(122, 184, 255, 0.25);
+			background: rgba(122, 184, 255, 0.06);
+			}
+			.role-badge.red {
+			color: var(--red-accent);
+			border-color: rgba(255, 154, 154, 0.25);
+			background: rgba(255, 154, 154, 0.06);
+			}
+
+			.clue-panel {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 1rem;
+			padding: 0.9rem 1.1rem;
+			background: var(--glass);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			box-shadow: var(--shadow-card);
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+			min-height: 60px;
+			}
+			.clue-panel.hidden { display: none; }
+
+			.clue-display {
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 17px;
+			color: var(--text);
+			letter-spacing: 0.05em;
+			}
+			.clue-display .num {
+			color: var(--text-dim);
+			margin-left: 0.5rem;
+			}
+			.clue-display .team-blue {
+			color: var(--blue-accent);
+			text-shadow: 0 0 14px rgba(122, 184, 255, 0.4);
+			}
+			.clue-display .team-red {
+			color: var(--red-accent);
+			text-shadow: 0 0 14px rgba(255, 154, 154, 0.4);
+			}
+
+			.clue-controls {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+			}
+			.clue-inputs {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			}
+			.clue-inputs input {
+			font: inherit;
+			font-size: 14px;
+			padding: 0.55rem 0.75rem;
+			background: var(--bg);
+			color: var(--text);
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			outline: none;
+			transition: border-color 0.2s ease, box-shadow 0.2s ease;
+			}
+			.clue-inputs input:focus {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
+			}
+			.clue-inputs input[type="text"] { width: 180px; }
+			.clue-inputs input[type="number"] { width: 70px; }
+
+			.clue-controls button {
+			font: inherit;
+			font-size: 14px;
+			padding: 0.55rem 1.1rem;
+			background: linear-gradient(180deg, #2e2e3c, #23232e);
+			color: var(--text);
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			}
+			.clue-controls button:hover:not(:disabled) {
+			border-color: var(--accent);
+			color: #fff;
+			background: linear-gradient(180deg, #353545, #282834);
+			}
+			.clue-controls button:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			}
+
+			#btn-end-turn {
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			background: linear-gradient(180deg, #3a2a1a, #2b1f13);
+			border-color: rgba(255, 207, 122, 0.35);
+			color: var(--warn);
+			padding-bottom: 0.6rem;
+			}
+			#btn-end-turn:hover {
+			background: linear-gradient(180deg, #4a3a23, #3a2a1a);
+			border-color: rgba(255, 207, 122, 0.7);
+			color: #ffe4b0;
+			box-shadow: 0 0 22px rgba(255, 207, 122, 0.2);
+			}
+			#btn-end-turn.voting {
+			border-color: rgba(255, 207, 122, 0.9);
+			box-shadow: 0 0 22px rgba(255, 207, 122, 0.55),
+			inset 0 0 8px rgba(255, 207, 122, 0.2);
+			animation: voting-pulse 1.1s ease-in-out infinite;
+			}
+
+			/* Точки-голоса на кнопке "Закончить ход" */
+			.end-turn-voters {
+			display: inline-flex;
+			gap: 3px;
+			margin-left: 2px;
+			}
+			.end-turn-voters .voter-dot {
+			width: 9px;
+			height: 9px;
+			}
+			.end-turn-voters .voter-dot.me {
+			outline-width: 1px;
+			outline-offset: 0;
+			}
+
+			/* Полоска прогресса на кнопке "Закончить ход" */
+			.end-turn-progress {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 4px;
+			background: rgba(0, 0, 0, 0.45);
+			border-radius: 0 0 6px 6px;
+			overflow: hidden;
+			}
+			.end-turn-progress[hidden] { display: none; }
+			.end-turn-progress .fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
+			box-shadow: 0 0 8px rgba(255, 207, 122, 0.7);
+			}
+
+			.board {
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			gap: 0.6rem;
+			width: 100%;
+			}
+
+			.card {
+			position: relative;
+			aspect-ratio: 1 / 1;
+			background: var(--glass-solid);
+			border-radius: var(--radius-sm);
+			overflow: hidden;
+			cursor: default;
+			transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+			box-shadow 0.2s ease,
+			border-color 0.2s ease;
+			border: 2px solid transparent;
+			}
+			.card img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+			user-select: none;
+			-webkit-user-drag: none;
+			}
+
+			.card.revealable { cursor: pointer; }
+			.card.revealable:hover {
+			transform: translateY(-3px) scale(1.02);
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6),
+			0 0 30px rgba(122, 184, 255, 0.15);
+			border-color: rgba(122, 184, 255, 0.4);
+			}
+
+			.card.spymaster .tint {
+			position: absolute;
+			inset: 0;
+			mix-blend-mode: multiply;
+			pointer-events: none;
+			}
+			.card.spymaster.blue {
+			box-shadow: 0 0 14px rgba(80, 150, 255, 0.55),
+			inset 0 0 10px rgba(80, 150, 255, 0.3);
+			border-color: rgba(80, 150, 255, 0.65);
+			}
+			.card.spymaster.red {
+			box-shadow: 0 0 14px rgba(255, 100, 100, 0.55),
+			inset 0 0 10px rgba(255, 100, 100, 0.3);
+			border-color: rgba(255, 100, 100, 0.65);
+			}
+			.card.spymaster.neutral {
+			box-shadow: 0 0 10px rgba(140, 140, 150, 0.35);
+			border-color: rgba(140, 140, 150, 0.45);
+			}
+			.card.spymaster.assassin {
+			box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
+			inset 0 0 15px rgba(200, 60, 230, 0.7);
+			border-color: rgba(230, 100, 255, 1);
+			animation: assassin-pulse 2s ease-in-out infinite;
+			}
+			@keyframes assassin-pulse {
+			0%, 100% {
+			box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
+			inset 0 0 15px rgba(200, 60, 230, 0.7);
+			}
+			50% {
+			box-shadow: 0 0 45px rgba(230, 100, 255, 1),
+			inset 0 0 25px rgba(230, 100, 255, 0.9);
+			}
+			}
+
+			.card.spymaster.blue .tint { background: rgba(80, 150, 255, 0.7); }
+			.card.spymaster.red .tint { background: rgba(255, 100, 100, 0.7); }
+			.card.spymaster.neutral .tint { background: rgba(120, 120, 130, 0.6); }
+			.card.spymaster.assassin .tint { background: rgba(140, 20, 180, 0.9); }
+
+			.card.revealed.blue {
+			background: var(--blue-bg);
+			border-color: var(--blue-accent);
+			box-shadow: 0 0 22px rgba(80, 150, 255, 0.45);
+			}
+			.card.revealed.red {
+			background: var(--red-bg);
+			border-color: var(--red-accent);
+			box-shadow: 0 0 22px rgba(255, 100, 100, 0.45);
+			}
+			.card.revealed.neutral {
+			background: var(--neutral-bg);
+			border-color: var(--neutral-accent);
+			box-shadow: 0 0 12px rgba(140, 140, 150, 0.3);
+			}
+			.card.revealed.assassin {
+			background: var(--assassin-bg);
+			border-color: var(--assassin-accent);
+			box-shadow: 0 0 35px rgba(200, 60, 230, 0.9);
+			}
+			.card.revealed img { opacity: 0.35; }
+			.card.revealed { cursor: default; }
+
+			.card .badge {
+			position: absolute;
+			top: 6px;
+			right: 8px;
+			font-family: ui-monospace, monospace;
+			font-size: 11px;
+			padding: 2px 6px;
+			border-radius: 4px;
+			background: rgba(0, 0, 0, 0.6);
+			color: #fff;
+			opacity: 0;
+			transition: opacity 0.2s;
+			pointer-events: none;
+			}
+			.card.revealed .badge { opacity: 1; }
+
+			/* === Точки-голоса на карточке === */
+			.card-voters {
+			position: absolute;
+			top: 6px;
+			left: 6px;
+			display: flex;
+			gap: 4px;
+			z-index: 3;
+			pointer-events: none;
+			}
+			.voter-dot {
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			border: 1px solid rgba(0, 0, 0, 0.5);
+			box-shadow: 0 0 8px currentColor;
+			transition: transform 0.15s ease;
+			}
+			.voter-dot.me {
+			outline: 2px solid rgba(255, 255, 255, 0.85);
+			outline-offset: 1px;
+			transform: scale(1.1);
+			}
+
+			.card.voting {
+			border-color: rgba(255, 207, 122, 0.75);
+			box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
+			inset 0 0 12px rgba(255, 207, 122, 0.25);
+			animation: voting-pulse 1.1s ease-in-out infinite;
+			}
+			@keyframes voting-pulse {
+			0%, 100% {
+			box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
+			inset 0 0 12px rgba(255, 207, 122, 0.25);
+			}
+			50% {
+			box-shadow: 0 0 44px rgba(255, 207, 122, 0.85),
+			inset 0 0 18px rgba(255, 207, 122, 0.5);
+			}
+			}
+
+			.card-vote-progress {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 6px;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 4;
+			overflow: hidden;
+			}
+			.card-vote-progress > .fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
+			box-shadow: 0 0 10px rgba(255, 207, 122, 0.7);
+			}
+
+			.card .vote-count-badge {
+			position: absolute;
+			top: 6px;
+			left: 6px;
+			background: rgba(0, 0, 0, 0.75);
+			border: 1px solid rgba(255, 207, 122, 0.6);
+			color: #ffcf7a;
+			font-size: 11px;
+			font-family: ui-monospace, monospace;
+			padding: 2px 7px;
+			border-radius: 10px;
+			z-index: 3;
+			pointer-events: none;
+			}
+
+			.finish-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(5, 5, 10, 0.75);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			display: grid;
+			place-items: center;
+			z-index: 100;
+			padding: 1rem;
+			animation: fadeIn 0.35s ease both;
+			}
+			.finish-overlay.hidden { display: none; }
+
+			.finish-card {
+			background: var(--glass);
+			border: 1px solid var(--border-strong);
+			border-radius: var(--radius);
+			padding: 2.5rem;
+			text-align: center;
+			box-shadow: var(--shadow-hover);
+			max-width: 480px;
+			width: 100%;
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			}
+			.finish-card h1 {
+			font-weight: 300;
+			margin: 0 0 1rem;
+			letter-spacing: 0.05em;
+			font-size: 28px;
+			}
+			.finish-card p {
+			color: var(--text-dim);
+			margin: 0 0 1.5rem;
+			font-size: 14px;
+			}
+			.finish-buttons {
+			display: flex;
+			gap: 0.5rem;
+			justify-content: center;
+			flex-wrap: wrap;
+			}
+			.finish-buttons > * { flex: 1; min-width: 140px; }
+
+			.status-line {
+			margin-top: 1rem;
+			font-size: 13px;
+			color: var(--text-mute);
+			min-height: 1.2rem;
+			text-align: center;
+			transition: color 0.2s ease;
+			}
+			.error-line {
+			margin-top: 0.5rem;
+			font-size: 13px;
+			color: var(--err);
+			min-height: 1.2rem;
+			text-align: center;
+			}
+
+			@media (max-width: 640px) {
+			.board { gap: 0.4rem; }
+			.clue-inputs input[type="text"] { width: 130px; }
+			.topbar { font-size: 12px; }
+			.room-code { letter-spacing: 0.15em; }
+			.finish-card { padding: 1.8rem; }
+			.finish-card h1 { font-size: 22px; }
+			.voter-dot { width: 10px; height: 10px; }
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+			.card.spymaster.assassin { animation: none; }
+			.turn-timer.overtime { animation: none; }
+			.turn-timer.urgent { animation: none; }
+			.card.voting { animation: none; }
+			#btn-end-turn.voting { animation: none; }
+			}
+		</style>
+	</head>
+	<body>
+
+		<div class="bg-orbs" aria-hidden="true">
+			<div class="orb orb-1"></div>
+			<div class="orb orb-2"></div>
+			<div class="orb orb-3"></div>
+		</div>
+		<div class="bg-grid" aria-hidden="true"></div>
+
+		<main class="shell game-shell">
+
+			<div class="topbar">
+				<div class="left">
+					<span class="room-code" id="room-code">----</span>
+					<span class="turn-indicator none" id="turn">—</span>
+					<div class="turn-timer" id="turn-timer" hidden="">
+						<span id="timer-value">--:--</span>
+						<span class="timer-bonus" id="timer-bonus">+15</span>
+					</div>
+				</div>
+				<div class="right">
+					<span class="score">
+						<span class="Blue" id="score-blue">0/9</span>
+						<span class="Red" id="score-red">0/8</span>
+					</span>
+					<span class="role-badge" id="my-role">—</span>
+					<button class="btn btn-sm btn-ghost" id="btn-exit">В лобби</button>
+				</div>
+			</div>
+
+			<div class="clue-panel hidden" id="clue-panel">
+				<div class="clue-display" id="clue-display">Подсказок нет</div>
+				<div class="clue-controls">
+					<div class="clue-inputs" id="clue-inputs">
+						<input type="text" id="clue-word" placeholder="Слово" maxlength="30" />
+						<input type="number" id="clue-number" min="1" max="9" value="1" />
+						<button id="btn-clue">Дать подсказку</button>
+					</div>
+					<button id="btn-end-turn" style="display: none;">
+						<span>Закончить ход</span>
+						<span class="end-turn-voters" id="end-turn-voters"></span>
+						<div class="end-turn-progress" id="end-turn-progress" hidden="">
+							<div class="fill"></div>
+						</div>
+					</button>
+				</div>
+			</div>
+
+			<div class="board" id="board"></div>
+
+			<div class="status-line" id="status">Подключение…</div>
+			<div class="error-line" id="error"></div>
+
+		</main>
+
+		<div class="finish-overlay hidden" id="finish">
+			<div class="finish-card">
+				<h1 id="finish-title">Партия завершена</h1>
+				<p id="finish-sub">—</p>
+				<div class="finish-buttons">
+					<button class="btn btn-success" id="btn-go-lobby">В лобби</button>
+					<button class="btn" id="btn-leave-room">Покинуть комнату</button>
+				</div>
+			</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+		<script>
+			const params = new URLSearchParams(window.location.search);
+			const roomId = params.get('roomId');
+			const playerId = params.get('playerId');
+
+			if (!roomId || !playerId) {
+			window.location.href = '/lobby.html';
+			}
+
+			const $ = id => document.getElementById(id);
+			const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
+
+			const state = {
+			connection: null,
+			myRole: null,
+			myTeam: null,
+			isHost: false,
+			isSpectator: false,
+			currentTurnTeam: null,
+			currentClue: null,
+			guessesMade: 0,
+			guessesAllowed: 0,
+			cards: [],
+			teams: [],
+			gameState: null,
+			lastStateHash: null,
+			activeVote: null,
+			};
+
+			const timerState = {
+			serverOffsetMs: 0,
+			turnDeadlineMs: null,
+			spymasterDeadlineMs: null,
+			};
+
+			function parseUtcMs(str) {
+			if (!str) return null;
+			if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) str += 'Z';
+			const ms = new Date(str).getTime();
+			return isNaN(ms) ? null : ms;
+			}
+
+			function updateTimerState(data) {
+			const serverNow = parseUtcMs(data.serverNowUtc);
+			const clientNow = Date.now();
+			timerState.serverOffsetMs = (serverNow !== null) ? serverNow - clientNow : 0;
+
+			timerState.turnDeadlineMs = parseUtcMs(data.turnDeadlineUtc);
+			timerState.spymasterDeadlineMs = parseUtcMs(data.spymasterDeadlineUtc);
+			}
+
+			function tickTimer() {
+			const el = $('turn-timer');
+			const valueEl = $('timer-value');
+
+			if (state.gameState !== 'InGame') {
+			el.hidden = true;
+			return;
+			}
+
+			const now = Date.now() + timerState.serverOffsetMs;
+			const isSpymaster = state.myRole === 'Spymaster';
+			const hasClue = !!state.currentClue;
+
+			const usePersonalSpymasterWindow =
+			isSpymaster
+			&& !hasClue
+			&& timerState.spymasterDeadlineMs
+			&& now < timerState.spymasterDeadlineMs;
+
+        const targetDeadline = usePersonalSpymasterWindow
+            ? timerState.spymasterDeadlineMs
+            : timerState.turnDeadlineMs;
+
+        if (!targetDeadline) {
+            el.hidden = true;
             return;
         }
 
-        $('clue-panel').classList.remove('hidden');
-        $('clue-inputs').style.display = canGiveClue ? 'flex' : 'none';
-        $('btn-end-turn').style.display = canEndTurn ? 'inline-block' : 'none';
+        el.hidden = false;
 
-        const display = $('clue-display');
-        if (state.currentClue) {
-            const teamClass = state.currentClue.team === 'Blue' ? 'team-blue' : 'team-red';
-            display.innerHTML =
-                `<span class="${teamClass}">${escapeHtml(state.currentClue.word)}</span>` +
-                `<span class="num">${state.currentClue.number}</span>`;
-        } else if (isMyTurn && isSpymaster) {
-            display.textContent = 'Твой ход — дай подсказку';
-        } else if (isMyTurn) {
-            display.textContent = 'Ждём подсказку от спаймастера';
-        } else {
-            display.textContent = 'Ход другой команды';
-        }
-    }
+        const remainingMs = targetDeadline - now;
+        const remaining = Math.max(0, Math.floor(remainingMs / 1000));
 
-    function renderBoard() {
-        const board = $('board');
-        board.innerHTML = '';
+        const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const ss = String(remaining % 60).padStart(2, '0');
+        valueEl.textContent = `${mm}:${ss}`;
 
-        const sorted = [...state.cards].sort((a, b) => a.position - b.position);
-        const isSpymaster = state.myRole === 'Spymaster';
-        const isMyTurn = state.myTeam && state.currentTurnTeam
-            && state.myTeam === state.currentTurnTeam;
-        const hasClue = !!state.currentClue;
+        el.classList.remove('blue', 'red');
+        if (state.currentTurnTeam === 'Blue') el.classList.add('blue');
+        else if (state.currentTurnTeam === 'Red') el.classList.add('red');
 
-        for (const card of sorted) {
-            const el = document.createElement('div');
-            el.className = 'card';
+        const overtime = isSpymaster
+            && !hasClue
+			&& timerState.spymasterDeadlineMs
+			&& now >= timerState.spymasterDeadlineMs;
+			el.classList.toggle('overtime', !!overtime);
 
-            if (isSpymaster && !card.isRevealed) el.classList.add('spymaster');
+			el.classList.toggle('urgent', remaining <= 10 && remaining > 0 && !overtime);
 
-            const color = card.color ?? null;
-            if (color && !card.isRevealed) el.classList.add(color.toLowerCase());
+			if (remaining <= 0) {
+			if (!tickTimer._stuckSince) tickTimer._stuckSince = Date.now();
+			else if (Date.now() - tickTimer._stuckSince > 3000) {
+			tickTimer._stuckSince = 0;
+			fetchAndRenderState(true);
+			}
+			} else {
+			tickTimer._stuckSince = 0;
+			}
+			}
 
-            if (card.isRevealed) {
-                el.classList.add('revealed');
-                if (color) el.classList.add(color.toLowerCase());
-            }
+			function flashBonus(seconds) {
+			const b = $('timer-bonus');
+			b.textContent = `+${seconds}`;
+			b.classList.remove('show');
+			void b.offsetWidth;
+			b.classList.add('show');
+			}
 
-            const img = document.createElement('img');
-            img.src = card.imageUrl;
-            img.alt = card.altText || '';
-            img.draggable = false;
-            el.appendChild(img);
+			// Тик полосок прогресса — на карте и на кнопке
+			function tickVoteProgress() {
+			const av = state.activeVote;
 
-            if (isSpymaster && !card.isRevealed && color) {
-                const tint = document.createElement('div');
-                tint.className = 'tint';
-                el.appendChild(tint);
-            }
+			// Полоска на карте
+			const cardFill = document.querySelector('.card-vote-progress > .fill');
+			// Полоска на кнопке
+			const btnFill = document.querySelector('.end-turn-progress > .fill');
 
-            if (card.isRevealed && color) {
-                const badge = document.createElement('div');
-                badge.className = 'badge';
-                badge.textContent = color[0];
-                el.appendChild(badge);
-            }
+			const update = (fill, isActive) => {
+			if (!fill) return;
+			if (!isActive || !av || !av.deadlineUtc) {
+			fill.style.width = '0%';
+			return;
+			}
+			const now = Date.now() + timerState.serverOffsetMs;
+			const deadline = parseUtcMs(av.deadlineUtc);
+			if (!deadline) return;
+			const totalMs = 5000;
+			const remaining = Math.max(0, deadline - now);
+			const progress = Math.max(0, Math.min(1, 1 - remaining / totalMs));
+			fill.style.width = (progress * 100).toFixed(1) + '%';
+			};
 
-            const canReveal = !card.isRevealed && !isSpymaster && !state.isSpectator
-                && isMyTurn && hasClue;
+			update(cardFill, av && av.kind === 'Card');
+			update(btnFill, av && av.kind === 'EndTurn');
+			}
 
-            if (canReveal) {
-                el.classList.add('revealable');
-                el.onclick = () => revealCard(card.id);
-            }
+			setInterval(tickTimer, 200);
+			setInterval(tickVoteProgress, 100);
 
-            el.title = card.altText || '';
-            board.appendChild(el);
-        }
-    }
+			function hashState(data) {
+			return JSON.stringify({
+			s: data.state,
+			t: data.currentTurnTeam,
+			c: data.currentClue?.word,
+			n: data.currentClue?.number,
+			cs: data.cards.map(c => c.isRevealed ? 1 : 0).join(''),
+			sc: data.teams.map(t => t.score),
+			d: data.turnDeadlineUtc,
+			v: data.cards.map(c => (c.voters || []).map(v => v.playerId).join(',')).join('|'),
+			av: data.activeVote
+			? data.activeVote.kind + ':' + (data.activeVote.cardId || '') + ':'
+			+ (data.activeVote.deadlineUtc || '') + ':'
+			+ (data.activeVote.voters || []).map(v => v.playerId).join(',')
+			: '',
+			});
+			}
 
-    function renderFinish() {
-        if (state.gameState !== 'Finished') {
-            $('finish').classList.add('hidden');
-            return;
-        }
+			function render(data) {
+			state.myRole = data.yourRole;
+			state.myTeam = data.yourTeam;
+			state.isHost = data.isHost || false;
+			state.isSpectator = data.yourRole === 'Spectator';
+			state.currentTurnTeam = data.currentTurnTeam;
+			state.currentClue = data.currentClue;
+			state.guessesMade = data.guessesMade;
+			state.guessesAllowed = data.guessesAllowed;
+			state.cards = data.cards;
+			state.teams = data.teams;
+			state.gameState = data.state;
+			state.activeVote = data.activeVote || null;
 
-        const blue = state.teams.find(t => t.color === 'Blue');
-        const red = state.teams.find(t => t.color === 'Red');
-        const assassinOpen = state.cards.some(c => c.isRevealed && c.color === 'Assassin');
+			if (data.state !== 'InGame') {
+			timerState.turnDeadlineMs = null;
+			timerState.spymasterDeadlineMs = null;
+			}
 
-        let title, sub;
-        if (assassinOpen) {
-            title = blue.score > red.score ? 'Победа синих' : 'Победа красных';
-            sub = 'Ассасин был открыт.';
-        } else if (blue.score >= 9) {
-            title = 'Победа синих'; sub = 'Все 9 карт открыты.';
-        } else if (red.score >= 8) {
-            title = 'Победа красных'; sub = 'Все 8 карт открыты.';
-        } else {
-            title = 'Партия завершена'; sub = '';
-        }
+			$('room-code').textContent = data.code;
 
-        $('finish-title').textContent = title;
-        $('finish-sub').textContent = sub;
-        $('finish').classList.remove('hidden');
-    }
+			const roleText = data.yourRole === 'Spymaster' ? 'Спаймастер'
+			: (data.yourRole === 'Spectator' ? 'Зритель' : 'Оперативник');
+			const roleEl = $('my-role');
+			roleEl.className = 'role-badge';
+			if (data.yourTeam === 'Blue') {
+			roleEl.textContent = roleText + ' · Синие';
+			roleEl.classList.add('blue');
+			} else if (data.yourTeam === 'Red') {
+			roleEl.textContent = roleText + ' · Красные';
+			roleEl.classList.add('red');
+			} else {
+			roleEl.textContent = roleText;
+			}
 
-    async function revealCard(cardId) {
-        $('error').textContent = '';
-        try {
-            await state.connection.invoke('RevealCard', roomId, playerId, cardId);
-        } catch (e) {
-            $('error').textContent = e.message;
-        }
-    }
+			const turn = $('turn');
+			if (data.currentTurnTeam) {
+			turn.textContent = data.currentTurnTeam === 'Blue' ? 'Ход синих' : 'Ход красных';
+			turn.className = 'turn-indicator ' + data.currentTurnTeam;
+			} else {
+			turn.textContent = '—';
+			turn.className = 'turn-indicator none';
+			}
 
-    async function giveClue() {
-        $('error').textContent = '';
-        const word = $('clue-word').value.trim();
-        const number = parseInt($('clue-number').value, 10);
-        if (!word) return $('error').textContent = 'Введи слово';
-        if (!number || number < 1 || number > 9)
+			renderScore();
+			renderCluePanel();
+			renderBoard();
+			renderFinish();
+
+			updateTimerState(data);
+			tickTimer();
+			}
+
+			function renderScore() {
+			const blue = state.teams.find(t => t.color === 'Blue');
+			const red = state.teams.find(t => t.color === 'Red');
+			$('score-blue').textContent = `${blue?.score ?? 0}/9`;
+			$('score-red').textContent = `${red?.score ?? 0}/8`;
+			}
+
+			function renderCluePanel() {
+			const isSpymaster = state.myRole === 'Spymaster';
+			const isSpectator = state.isSpectator;
+			const isMyTurn = state.myTeam && state.currentTurnTeam
+			&& state.myTeam === state.currentTurnTeam;
+			const canGiveClue = isSpymaster && isMyTurn && !state.currentClue;
+			const canEndTurn = !isSpymaster && !isSpectator && isMyTurn && !!state.currentClue;
+
+			if (isSpectator) {
+			$('clue-panel').classList.add('hidden');
+			return;
+			}
+
+			$('clue-panel').classList.remove('hidden');
+			$('clue-inputs').style.display = canGiveClue ? 'flex' : 'none';
+			$('btn-end-turn').style.display = canEndTurn ? 'inline-flex' : 'none';
+
+			const display = $('clue-display');
+			if (state.currentClue) {
+			const teamClass = state.currentClue.team === 'Blue' ? 'team-blue' : 'team-red';
+			display.innerHTML =
+			`<span class="${teamClass}">${escapeHtml(state.currentClue.word)}</span>` +
+			`<span class="num">${state.currentClue.number}</span>`;
+			} else if (isMyTurn && isSpymaster) {
+			display.textContent = 'Твой ход — дай подсказку';
+			} else if (isMyTurn) {
+			display.textContent = 'Ждём подсказку от спаймастера';
+			} else {
+			display.textContent = 'Ход другой команды';
+			}
+
+			// === Голосование за конец хода ===
+			const av = state.activeVote;
+			const isEndTurnVote = av && av.kind === 'EndTurn';
+
+			const dotsContainer = $('end-turn-voters');
+			dotsContainer.innerHTML = '';
+
+			if (isEndTurnVote && av.voters && av.voters.length > 0) {
+			for (const v of av.voters) {
+			const dot = document.createElement('div');
+			dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
+			dot.style.background = v.color;
+			dot.style.color = v.color;
+			dotsContainer.appendChild(dot);
+			}
+			}
+
+			const btn = $('btn-end-turn');
+			btn.classList.toggle('voting', !!isEndTurnVote);
+
+			const progressEl = $('end-turn-progress');
+			progressEl.hidden = !(isEndTurnVote && av.deadlineUtc);
+			}
+
+			function renderBoard() {
+			const board = $('board');
+			board.innerHTML = '';
+
+			const sorted = [...state.cards].sort((a, b) => a.position - b.position);
+			const isSpymaster = state.myRole === 'Spymaster';
+			const isMyTurn = state.myTeam && state.currentTurnTeam
+			&& state.myTeam === state.currentTurnTeam;
+			const hasClue = !!state.currentClue;
+
+			const av = state.activeVote;
+			const activeCardVoteId = (av && av.kind === 'Card') ? av.cardId : null;
+			const activeCardHasDeadline = activeCardVoteId && av.deadlineUtc ? true : false;
+
+			for (const card of sorted) {
+			const el = document.createElement('div');
+			el.className = 'card';
+
+			if (isSpymaster && !card.isRevealed) el.classList.add('spymaster');
+
+			const color = card.color ?? null;
+			if (color && !card.isRevealed) el.classList.add(color.toLowerCase());
+
+			if (card.isRevealed) {
+			el.classList.add('revealed');
+			if (color) el.classList.add(color.toLowerCase());
+			}
+
+			const img = document.createElement('img');
+			img.src = card.imageUrl;
+			img.alt = card.altText || '';
+			img.draggable = false;
+			el.appendChild(img);
+
+			if (isSpymaster && !card.isRevealed && color) {
+			const tint = document.createElement('div');
+			tint.className = 'tint';
+			el.appendChild(tint);
+			}
+
+			if (card.isRevealed && color) {
+			const badge = document.createElement('div');
+			badge.className = 'badge';
+			badge.textContent = color[0];
+			el.appendChild(badge);
+			}
+
+			// Точки голосов на карточке
+			const voters = card.voters || [];
+			const votersCount = card.votersCount || 0;
+
+			if (!card.isRevealed && votersCount > 0 && card.id === activeCardVoteId) {
+			if (voters.length > 0) {
+			const wrap = document.createElement('div');
+			wrap.className = 'card-voters';
+			for (const v of voters) {
+			const dot = document.createElement('div');
+			dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
+			dot.style.background = v.color;
+			dot.style.color = v.color;
+			wrap.appendChild(dot);
+			}
+			el.appendChild(wrap);
+			} else {
+			const cnt = document.createElement('div');
+			cnt.className = 'vote-count-badge';
+			cnt.textContent = `👁 ${votersCount}`;
+			el.appendChild(cnt);
+			}
+			}
+
+			// Активное голосование — свечение + полоска
+			if (activeCardHasDeadline && activeCardVoteId === card.id) {
+			el.classList.add('voting');
+			const bar = document.createElement('div');
+			bar.className = 'card-vote-progress';
+			const fill = document.createElement('div');
+			fill.className = 'fill';
+			bar.appendChild(fill);
+			el.appendChild(bar);
+			}
+
+			const canVote = !card.isRevealed && !isSpymaster && !state.isSpectator
+			&& isMyTurn && hasClue;
+
+			if (canVote) {
+			el.classList.add('revealable');
+			el.onclick = () => toggleVote(card.id);
+			}
+
+			el.title = card.altText || '';
+			board.appendChild(el);
+			}
+
+			tickVoteProgress();
+			}
+
+			function renderFinish() {
+			if (state.gameState !== 'Finished') {
+			$('finish').classList.add('hidden');
+			return;
+			}
+
+			const blue = state.teams.find(t => t.color === 'Blue');
+			const red = state.teams.find(t => t.color === 'Red');
+			const assassinOpen = state.cards.some(c => c.isRevealed && c.color === 'Assassin');
+
+			let title, sub;
+			if (assassinOpen) {
+			title = blue.score > red.score ? 'Победа синих' : 'Победа красных';
+			sub = 'Ассасин был открыт.';
+			} else if (blue.score >= 9) {
+			title = 'Победа синих'; sub = 'Все 9 карт открыты.';
+			} else if (red.score >= 8) {
+			title = 'Победа красных'; sub = 'Все 8 карт открыты.';
+			} else {
+			title = 'Партия завершена'; sub = '';
+			}
+
+			$('finish-title').textContent = title;
+			$('finish-sub').textContent = sub;
+			$('finish').classList.remove('hidden');
+			}
+
+			async function toggleVote(cardId) {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('ToggleVote', roomId, playerId, cardId);
+			} catch (e) {
+			$('error').textContent = e.message;
+			}
+			}
+
+			async function toggleEndTurnVote() {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('ToggleEndTurnVote', roomId, playerId);
+			} catch (e) {
+			$('error').textContent = e.message;
+			}
+			}
+
+			async function giveClue() {
+			$('error').textContent = '';
+			const word = $('clue-word').value.trim();
+			const number = parseInt($('clue-number').value, 10);
+			if (!word) return $('error').textContent = 'Введи слово';
+			if (!number || number < 1 || number > 9)
             return $('error').textContent = 'Число от 1 до 9';
         try {
             await state.connection.invoke('GiveClue', roomId, playerId, word, number);
@@ -920,128 +1124,119 @@
 
             const h = hashState(data);
             if (!force && h === state.lastStateHash) return;
-            state.lastStateHash = h;
+			state.lastStateHash = h;
 
-            render(data);
-        } catch (e) {
-            console.error('[fetch state]', e);
-        } finally {
-            fetching = false;
-        }
-    }
+			render(data);
+			} catch (e) {
+			console.error('[fetch state]', e);
+			} finally {
+			fetching = false;
+			}
+			}
 
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-    }
+			function escapeHtml(s) {
+			return String(s).replace(/[&<>"']/g, c => ({
+			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
+			}
 
-    // === SignalR ===
+			async function start() {
+			const conn = new signalR.HubConnectionBuilder()
+			.withUrl('/gamehub')
+			.withAutomaticReconnect()
+			.build();
 
-    async function start() {
-        const conn = new signalR.HubConnectionBuilder()
-            .withUrl('/gamehub')
-            .withAutomaticReconnect()
-            .build();
+			conn.on('GameStateUpdated', data => {
+			state.lastStateHash = hashState(data);
+			render(data);
+			});
 
-        conn.on('GameStateUpdated', data => {
-            state.lastStateHash = hashState(data);
-            render(data);
-        });
+			conn.on('StateChanged', () => fetchAndRenderState());
 
-        conn.on('StateChanged', () => fetchAndRenderState());
+			conn.on('RevealOutcome', ({ outcome }) => {
+			const labels = {
+			Correct: '✓ Верно!',
+			WrongTeam: '✗ Чужая карта — ход переходит',
+			Neutral: '· Нейтральная — ход переходит',
+			Assassin: '☠ Ассасин. Игра окончена.'
+			};
+			$('status').textContent = labels[outcome] || '';
+			setTimeout(() => $('status').textContent = '', 3000);
+			});
 
-        conn.on('RevealOutcome', ({ outcome }) => {
-            const labels = {
-                Correct: '✓ Верно!',
-                WrongTeam: '✗ Чужая карта — ход переходит',
-                Neutral: '· Нейтральная — ход переходит',
-                Assassin: '☠ Ассасин. Игра окончена.'
-            };
-            $('status').textContent = labels[outcome] || '';
-            setTimeout(() => $('status').textContent = '', 3000);
-        });
+			conn.on('TurnBonus', ({ seconds }) => {
+			flashBonus(seconds);
+			});
 
-        conn.on('TurnBonus', ({ seconds }) => {
-            flashBonus(seconds);
-        });
+			conn.on('LobbyUpdated', lobby => {
+			if (lobby.state === 'Lobby') {
+			window.location.href = lobbyUrl;
+			}
+			});
 
-        conn.on('LobbyUpdated', lobby => {
-            if (lobby.state === 'Lobby') {
-                window.location.href = lobbyUrl;
-            }
-        });
+			conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
+			conn.onreconnected(async () => {
+			$('status').textContent = 'Подключено';
+			try {
+			await conn.invoke('JoinGame', roomId, playerId);
+			} catch (e) {
+			console.error('[reconnect JoinGame failed]', e);
+			window.location.href = lobbyUrl;
+			}
+			});
+			conn.onclose(() => $('status').textContent = 'Соединение закрыто');
 
-        conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
-        conn.onreconnected(async () => {
-            $('status').textContent = 'Подключено';
-            try {
-                await conn.invoke('JoinGame', roomId, playerId);
-            } catch (e) {
-                console.error('[reconnect JoinGame failed]', e);
-                window.location.href = lobbyUrl;
-            }
-        });
-        conn.onclose(() => $('status').textContent = 'Соединение закрыто');
+			await conn.start();
+			await conn.invoke('JoinGame', roomId, playerId);
+			state.connection = conn;
+			$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
 
-        await conn.start();
-        await conn.invoke('JoinGame', roomId, playerId);
-        state.connection = conn;
-        $('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
+			setInterval(() => fetchAndRenderState(), 3000);
+			}
 
-        setInterval(() => fetchAndRenderState(), 3000);
-    }
+			// === Обработчики ===
 
-    // === Обработчики ===
+			$('btn-clue').onclick = giveClue;
+			$('clue-word').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
+			$('clue-number').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
 
-    $('btn-clue').onclick = giveClue;
-    $('clue-word').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
-    $('clue-number').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
+			$('btn-end-turn').onclick = toggleEndTurnVote;
 
-    $('btn-end-turn').onclick = async () => {
-        $('error').textContent = '';
-        try {
-            await state.connection.invoke('EndTurn', roomId, playerId);
-        } catch (e) {
-            $('error').textContent = e.message;
-        }
-    };
+			async function goToLobby() {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('ReturnToLobby', roomId, playerId);
+			} catch (e) {
+			window.location.href = lobbyUrl;
+			}
+			}
 
-    async function goToLobby() {
-        $('error').textContent = '';
-        try {
-            await state.connection.invoke('ReturnToLobby', roomId, playerId);
-        } catch (e) {
-            window.location.href = lobbyUrl;
-        }
-    }
+			$('btn-exit').onclick = goToLobby;
+			$('btn-go-lobby').onclick = goToLobby;
 
-    $('btn-exit').onclick = goToLobby;
-    $('btn-go-lobby').onclick = goToLobby;
+			async function leaveRoomCompletely() {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('LeaveRoom', roomId, playerId);
+			} catch (e) {
+			console.error('[leave room]', e);
+			}
+			try { await state.connection.stop(); } catch {}
+			window.location.href = '/lobby.html';
+			}
 
-    async function leaveRoomCompletely() {
-        $('error').textContent = '';
-        try {
-            await state.connection.invoke('LeaveRoom', roomId, playerId);
-        } catch (e) {
-            console.error('[leave room]', e);
-        }
-        try { await state.connection.stop(); } catch {}
-        window.location.href = '/lobby.html';
-    }
+			$('btn-leave-room').onclick = leaveRoomCompletely;
 
-    $('btn-leave-room').onclick = leaveRoomCompletely;
+			start().catch(err => {
+			$('status').textContent = 'Ошибка';
+			$('error').textContent = err.message;
 
-    start().catch(err => {
-        $('status').textContent = 'Ошибка';
-        $('error').textContent = err.message;
-
-        if (/комната|игрок/i.test(err.message)) {
-            setTimeout(() => {
-                window.location.href = '/lobby.html';
-            }, 2500);
-        }
-    });
-</script>
-</body>
+			if (/комната|игрок/i.test(err.message)) {
+			setTimeout(() => {
+			window.location.href = '/lobby.html';
+			}, 2500);
+			}
+			});
+		</script>
+	</body>
 </html>

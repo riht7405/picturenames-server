@@ -5,13 +5,34 @@ namespace PictureNames.Server.Services.Dto;
 public record CreateRoomRequest(string Nickname);
 public record JoinRoomRequest(string Nickname);
 
+public record GameSettingsDto(
+    int GridSize,
+    bool TimerEnabled,
+    string ImagePack,
+    int FirstSpymasterSeconds,
+    int SpymasterSeconds,
+    int OperativeSeconds,
+    int BonusPerCorrectSeconds
+);
+
+public record UpdateSettingsRequest(
+    Guid PlayerId,
+    bool? TimerEnabled,
+    string? ImagePack,
+    int? FirstSpymasterSeconds,
+    int? SpymasterSeconds,
+    int? OperativeSeconds,
+    int? BonusPerCorrectSeconds
+);
+
 public record LobbyDto(
     Guid RoomId,
     string Code,
     RoomState State,
     Guid? HostId,
     IReadOnlyList<PlayerDto> Players,
-    IReadOnlyList<TeamDto> Teams
+    IReadOnlyList<TeamDto> Teams,
+    GameSettingsDto Settings
 );
 
 public record PlayerDto(

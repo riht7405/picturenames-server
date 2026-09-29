@@ -10,11 +10,13 @@ public class GameService
 {
     private readonly AppDbContext _db;
     private readonly TurnTimerService _timer;
+    private readonly VoteService _vote;
 
-    public GameService(AppDbContext db, TurnTimerService timer)
+    public GameService(AppDbContext db, TurnTimerService timer, VoteService vote)
     {
         _db = db;
         _timer = timer;
+        _vote = vote;
     }
 
     // === Генерация поля ===
@@ -131,8 +133,6 @@ public class GameService
         room.GuessesAllowed = number;
         room.GuessCount = 0;
 
-        // Пересчёт дедлайна: оперативники получают B_o секунд с этого момента,
-        // но не больше жёсткого капа T0 + B_s + B_o.
         if (room.Settings.TimerEnabled
             && room.TurnDeadlineUtc.HasValue
             && room.TurnStartedAtUtc.HasValue)
@@ -167,7 +167,9 @@ public class GameService
 
     // === Открытие карты ===
 
-    public async Task<RevealResult> RevealCardAsync(Guid roomId, Guid playerId, Guid cardId, CancellationToken ct = default)
+    // playerId == null → системное открытие (по голосованию)
+    public async Task<RevealResult> RevealCardAsync(
+        Guid roomId, Guid? playerId, Guid cardId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
             .Include(r => r.Settings)
@@ -180,23 +182,33 @@ public class GameService
         if (room.State != RoomState.InGame)
             throw new InvalidOperationException("Партия не идёт.");
 
-        var player = room.Players.FirstOrDefault(p => p.Id == playerId)
-            ?? throw new InvalidOperationException("Игрок не найден.");
+        if (playerId.HasValue)
+        {
+            var player = room.Players.FirstOrDefault(p => p.Id == playerId.Value)
+                ?? throw new InvalidOperationException("Игрок не найден.");
 
-        if (player.Role != PlayerRole.Operative)
-            throw new InvalidOperationException("Открывать карты может только оперативник.");
+            if (player.Role != PlayerRole.Operative)
+                throw new InvalidOperationException("Открывать карты может только оперативник.");
 
-        if (player.TeamId != room.CurrentTurnTeamId)
-            throw new InvalidOperationException("Сейчас не ваш ход.");
+            if (player.TeamId != room.CurrentTurnTeamId)
+                throw new InvalidOperationException("Сейчас не ваш ход.");
 
-        if (room.ClueWord is null)
-            throw new InvalidOperationException("Сначала дождись подсказки.");
+            if (room.ClueWord is null)
+                throw new InvalidOperationException("Сначала дождись подсказки.");
+        }
+        else
+        {
+            if (room.ClueWord is null)
+                throw new InvalidOperationException("Нельзя открывать без подсказки.");
+        }
 
         var card = room.Cards.FirstOrDefault(c => c.Id == cardId)
             ?? throw new InvalidOperationException("Карта не найдена.");
 
         if (card.IsRevealed)
             throw new InvalidOperationException("Карта уже открыта.");
+
+        _vote.ClearSession(roomId);
 
         card.IsRevealed = true;
         room.GuessCount++;
@@ -217,7 +229,6 @@ public class GameService
             outcome = RevealOutcome.Correct;
             currentTeam.Score++;
 
-            // Бонус за верный ответ
             if (room.Settings.BonusPerCorrectSeconds > 0 && room.TurnDeadlineUtc.HasValue)
             {
                 bonusApplied = room.Settings.BonusPerCorrectSeconds;
@@ -299,9 +310,33 @@ public class GameService
         ScheduleTimerFor(room);
     }
 
-    // === Автоматическое завершение хода (из серверного таймера) ===
+    // Системное завершение (по голосованию, без игрока)
+    public async Task<bool> EndTurnSystemAsync(Guid roomId, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Settings)
+            .Include(r => r.Teams)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct);
 
-    // Проверяет, что дедлайн не изменился с момента планирования (защита от гонок).
+        if (room is null || room.State != RoomState.InGame) return false;
+        if (room.ClueWord is null) return false;
+
+        _db.Moves.Add(new Move
+        {
+            RoomId = roomId,
+            PlayerId = null,
+            Type = MoveType.EndTurn,
+            Payload = null
+        });
+
+        EndTurn(room, room.Settings);
+        await _db.SaveChangesAsync(ct);
+        ScheduleTimerFor(room);
+        return true;
+    }
+
+    // === Автоматическое завершение хода по таймеру ===
+
     public async Task<bool> EndTurnAutoAsync(Guid roomId, DateTime expectedDeadlineUtc, CancellationToken ct = default)
     {
         var room = await _db.Rooms
@@ -315,7 +350,6 @@ public class GameService
         var stored = DateTime.SpecifyKind(room.TurnDeadlineUtc.Value, DateTimeKind.Utc);
         var expected = DateTime.SpecifyKind(expectedDeadlineUtc, DateTimeKind.Utc);
 
-        // Если дедлайн уже поменялся (кто-то успел) — таймер устарел
         var diff = Math.Abs((stored - expected).TotalSeconds);
         if (diff > 1.0) return false;
 
@@ -365,6 +399,7 @@ public class GameService
 
         await _db.SaveChangesAsync(ct);
         _timer.CancelTimer(roomId);
+        _vote.ClearSession(roomId);
     }
 
     // === Сборка состояния ===
@@ -372,14 +407,50 @@ public class GameService
     public async Task<GameStateForOperativeDto> GetForOperativeAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
         var state = await BuildStateAsync(roomId, playerId, ct);
+        var snapshot = state.VoteSnapshot;
+
+        bool canSeeVoterDetails = state.YourTeam.HasValue
+            && state.CurrentTurnTeam.HasValue
+            && state.YourTeam.Value == state.CurrentTurnTeam.Value;
 
         var cards = state.Cards
-            .Select(c => new CardForOperativeDto(
-                c.Id, c.Position, c.ImageUrl, c.AltText,
-                c.IsRevealed ? c.Color : null,
-                c.IsRevealed
-            ))
+            .Select(c =>
+            {
+                // Голоса на карточке — только если голосование сейчас за карту
+                List<VoteInfoDto> voters;
+                int count;
+
+                if (snapshot is not null
+                    && snapshot.Kind == VoteService.VoteTargetKind.Card
+                    && snapshot.CardId == c.Id)
+                {
+                    count = snapshot.Voters.Count;
+                    voters = canSeeVoterDetails
+                        ? snapshot.Voters
+                            .Select(pid => new VoteInfoDto(
+                                pid,
+                                snapshot.VoterColors.TryGetValue(pid, out var col) ? col : "#ffffff",
+                                pid == playerId))
+                            .ToList()
+                        : new List<VoteInfoDto>();
+                }
+                else
+                {
+                    count = 0;
+                    voters = new List<VoteInfoDto>();
+                }
+
+                return new CardForOperativeDto(
+                    c.Id, c.Position, c.ImageUrl, c.AltText,
+                    c.IsRevealed ? c.Color : null,
+                    c.IsRevealed,
+                    voters,
+                    count
+                );
+            })
             .ToList();
+
+        var activeVote = BuildActiveVote(snapshot, state.OperativesCount, playerId, canSeeVoterDetails);
 
         return new GameStateForOperativeDto(
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
@@ -388,19 +459,55 @@ public class GameService
             cards, state.Teams,
             DateTime.UtcNow,
             EnsureUtc(state.TurnDeadlineUtc),
-            EnsureUtc(state.SpymasterDeadlineUtc)
+            EnsureUtc(state.SpymasterDeadlineUtc),
+            activeVote
         );
     }
 
     public async Task<GameStateForSpymasterDto> GetForSpymasterAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
         var state = await BuildStateAsync(roomId, playerId, ct);
+        var snapshot = state.VoteSnapshot;
+
+        bool canSeeVoterDetails = state.YourTeam.HasValue
+            && state.CurrentTurnTeam.HasValue
+            && state.YourTeam.Value == state.CurrentTurnTeam.Value;
 
         var cards = state.Cards
-            .Select(c => new CardForSpymasterDto(
-                c.Id, c.Position, c.ImageUrl, c.AltText, c.Color, c.IsRevealed
-            ))
+            .Select(c =>
+            {
+                List<VoteInfoDto> voters;
+                int count;
+
+                if (snapshot is not null
+                    && snapshot.Kind == VoteService.VoteTargetKind.Card
+                    && snapshot.CardId == c.Id)
+                {
+                    count = snapshot.Voters.Count;
+                    voters = canSeeVoterDetails
+                        ? snapshot.Voters
+                            .Select(pid => new VoteInfoDto(
+                                pid,
+                                snapshot.VoterColors.TryGetValue(pid, out var col) ? col : "#ffffff",
+                                pid == playerId))
+                            .ToList()
+                        : new List<VoteInfoDto>();
+                }
+                else
+                {
+                    count = 0;
+                    voters = new List<VoteInfoDto>();
+                }
+
+                return new CardForSpymasterDto(
+                    c.Id, c.Position, c.ImageUrl, c.AltText, c.Color, c.IsRevealed,
+                    voters,
+                    count
+                );
+            })
             .ToList();
+
+        var activeVote = BuildActiveVote(snapshot, state.OperativesCount, playerId, canSeeVoterDetails);
 
         return new GameStateForSpymasterDto(
             state.RoomId, state.Code, state.State, state.CurrentTurnTeam,
@@ -409,7 +516,8 @@ public class GameService
             cards, state.Teams,
             DateTime.UtcNow,
             EnsureUtc(state.TurnDeadlineUtc),
-            EnsureUtc(state.SpymasterDeadlineUtc)
+            EnsureUtc(state.SpymasterDeadlineUtc),
+            activeVote
         );
     }
 
@@ -421,7 +529,9 @@ public class GameService
         bool IsHost,
         ClueDto? CurrentClue, int GuessesMade, int GuessesAllowed,
         List<InternalCard> Cards, List<TeamDto> Teams,
-        DateTime? TurnDeadlineUtc, DateTime? SpymasterDeadlineUtc
+        DateTime? TurnDeadlineUtc, DateTime? SpymasterDeadlineUtc,
+        VoteService.VoteSessionSnapshot? VoteSnapshot,
+        int OperativesCount
     );
 
     private async Task<InternalState> BuildStateAsync(Guid roomId, Guid playerId, CancellationToken ct)
@@ -465,18 +575,56 @@ public class GameService
             .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
             .ToList();
 
+        // Сколько оперативников онлайн в команде, чей сейчас ход
+        var operativesCount = room.Players.Count(p =>
+            p.TeamId == room.CurrentTurnTeamId
+            && p.Role == PlayerRole.Operative
+            && p.IsConnected);
+
         return new InternalState(
             room.Id, room.Code, room.State,
             currentTurnTeam, yourTeam, player.Role, player.IsHost,
             clue, room.GuessCount, room.GuessesAllowed,
             cards, teams,
-            room.TurnDeadlineUtc, room.SpymasterDeadlineUtc
+            room.TurnDeadlineUtc, room.SpymasterDeadlineUtc,
+            _vote.GetSnapshot(roomId),
+            operativesCount
+        );
+    }
+
+    private static ActiveVoteDto? BuildActiveVote(
+        VoteService.VoteSessionSnapshot? snapshot,
+        int operativesCount,
+        Guid meId,
+        bool canSeeVoterDetails)
+    {
+        if (snapshot is null || snapshot.Voters.Count == 0) return null;
+
+        var kindStr = snapshot.Kind == VoteService.VoteTargetKind.Card ? "Card" : "EndTurn";
+
+        var voters = canSeeVoterDetails
+            ? snapshot.Voters
+                .Select(pid => new VoteInfoDto(
+                    pid,
+                    snapshot.VoterColors.TryGetValue(pid, out var col) ? col : "#ffffff",
+                    pid == meId))
+                .ToList()
+            : new List<VoteInfoDto>();
+
+        return new ActiveVoteDto(
+            kindStr,
+            snapshot.CardId,
+            snapshot.Voters.Count,
+            operativesCount,
+            snapshot.DeadlineUtc.HasValue
+                ? DateTime.SpecifyKind(snapshot.DeadlineUtc.Value, DateTimeKind.Utc)
+                : null,
+            voters
         );
     }
 
     // === Таймер ===
 
-    // Пересчитать дедлайны для только что начавшегося хода.
     private static void ApplyTurnTimer(Room room, GameSettings settings)
     {
         if (!settings.TimerEnabled)
@@ -496,7 +644,6 @@ public class GameService
         room.TurnDeadlineUtc = now.AddSeconds(bS + bO);
     }
 
-    // Перепланировать серверный таймер после SaveChanges.
     private void ScheduleTimerFor(Room room)
     {
         if (room.State == RoomState.InGame && room.TurnDeadlineUtc.HasValue)
@@ -516,8 +663,10 @@ public class GameService
         (card == CardColor.Blue && team == TeamColor.Blue) ||
         (card == CardColor.Red && team == TeamColor.Red);
 
-    private static void EndTurn(Room room, GameSettings settings)
+    private void EndTurn(Room room, GameSettings settings)
     {
+        _vote.ClearSession(room.Id);
+
         var currentTeamId = room.CurrentTurnTeamId!.Value;
         var other = room.Teams.First(t => t.Id != currentTeamId);
         room.CurrentTurnTeamId = other.Id;
@@ -531,9 +680,6 @@ public class GameService
         ApplyTurnTimer(room, settings);
     }
 
-    // SQLite не хранит DateTimeKind. При чтении даты становятся Unspecified,
-    // и JSON-сериализатор пишет их без 'Z'. Клиент парсит как локальное — и промахивается
-    // на разницу часовых поясов. Принудительно ставим Kind=Utc.
     private static DateTime? EnsureUtc(DateTime? dt)
         => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
 }

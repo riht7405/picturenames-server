@@ -7,7 +7,6 @@ public class Player
     public Guid RoomId { get; set; }
     public Room Room { get; set; } = null!;
 
-    // Может быть null, пока игрок не распределён по команде
     public Guid? TeamId { get; set; }
     public Team? Team { get; set; }
 
@@ -17,8 +16,10 @@ public class Player
     public bool IsHost { get; set; }
     public bool IsConnected { get; set; }
 
-    // ID SignalR-соединения. Нужен для реконнекта
     public string? ConnectionId { get; set; }
+
+    // Цвет точки при голосовании за карту. Hex, например "#ff6b6b".
+    public string? VoteColor { get; set; }
 
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }

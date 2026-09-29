@@ -12,16 +12,23 @@ public class RoomService
     private readonly ILobbyNotifier _notifier;
     private readonly GameService _game;
     private readonly TurnTimerService _timer;
+    private readonly ImagePackScanner _images;
 
     private const string CodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private const int CodeLength = 4;
 
-    public RoomService(AppDbContext db, ILobbyNotifier notifier, GameService game, TurnTimerService timer)
+    public RoomService(
+        AppDbContext db,
+        ILobbyNotifier notifier,
+        GameService game,
+        TurnTimerService timer,
+        ImagePackScanner images)
     {
         _db = db;
         _notifier = notifier;
         _game = game;
         _timer = timer;
+        _images = images;
     }
 
     public async Task<LobbyDto> CreateRoomAsync(string nickname, CancellationToken ct = default)
@@ -43,7 +50,8 @@ public class RoomService
             Nickname = nickname.Trim(),
             Role = PlayerRole.Operative,
             IsHost = true,
-            IsConnected = true
+            IsConnected = true,
+            VoteColor = VotePalette.PickUnused(Array.Empty<string?>())
         };
         room.Players.Add(host);
 
@@ -61,35 +69,47 @@ public class RoomService
 
         var trimmedNick = nickname.Trim();
 
-        // Ищем игрока с таким ником
         var existing = await _db.Players
             .FirstOrDefaultAsync(p => p.RoomId == room.Id && p.Nickname == trimmedNick, ct);
 
-        // Если игрок с таким ником ЕСТЬ и он ОНЛАЙН — ник занят
         if (existing is not null && existing.IsConnected)
             throw new InvalidOperationException("Этот ник уже занят в комнате.");
 
-        // Если игрок есть, но оффлайн — это реконнект
         if (existing is not null)
         {
             existing.IsConnected = true;
+
+            if (string.IsNullOrEmpty(existing.VoteColor))
+            {
+                var existingColors = await _db.Players
+                    .Where(p => p.RoomId == room.Id && p.Id != existing.Id)
+                    .Select(p => p.VoteColor)
+                    .ToListAsync(ct);
+                existing.VoteColor = VotePalette.PickUnused(existingColors);
+            }
+
             await _db.SaveChangesAsync(ct);
             var lobbyExisting = await GetLobbyAsync(room.Id, ct);
             await _notifier.LobbyUpdatedAsync(room.Id, lobbyExisting, ct);
             return lobbyExisting;
         }
 
-        // Новый игрок: в лобби — оперативник, в игре — зритель
         var role = room.State == RoomState.Lobby
             ? PlayerRole.Operative
             : PlayerRole.Spectator;
+
+        var existingColorsList = await _db.Players
+            .Where(p => p.RoomId == room.Id)
+            .Select(p => p.VoteColor)
+            .ToListAsync(ct);
 
         _db.Players.Add(new Player
         {
             RoomId = room.Id,
             Nickname = trimmedNick,
             Role = role,
-            IsConnected = true
+            IsConnected = true,
+            VoteColor = VotePalette.PickUnused(existingColorsList)
         });
 
         await _db.SaveChangesAsync(ct);
@@ -101,6 +121,7 @@ public class RoomService
     public async Task<LobbyDto> GetLobbyAsync(Guid roomId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
+            .Include(r => r.Settings)
             .Include(r => r.Teams)
             .Include(r => r.Players)
             .FirstOrDefaultAsync(r => r.Id == roomId, ct)
@@ -108,7 +129,6 @@ public class RoomService
 
         var teamColors = room.Teams.ToDictionary(t => t.Id, t => t.Color);
 
-        // Материализуем ДО проекции — иначе EF ломается
         var playersList = room.Players.ToList();
         var teamsList = room.Teams.ToList();
 
@@ -132,8 +152,79 @@ public class RoomService
 
         var host = playersList.FirstOrDefault(p => p.IsHost);
 
-        return new LobbyDto(room.Id, room.Code, room.State, host?.Id, players, teams);
+        var settings = new GameSettingsDto(
+            room.Settings.GridSize,
+            room.Settings.TimerEnabled,
+            room.Settings.ImagePack,
+            room.Settings.FirstSpymasterSeconds,
+            room.Settings.SpymasterSeconds,
+            room.Settings.OperativeSeconds,
+            room.Settings.BonusPerCorrectSeconds
+        );
+
+        return new LobbyDto(room.Id, room.Code, room.State, host?.Id, players, teams, settings);
     }
+
+    public async Task<LobbyDto> UpdateSettingsAsync(
+        Guid roomId, UpdateSettingsRequest req, CancellationToken ct = default)
+    {
+        var room = await _db.Rooms
+            .Include(r => r.Settings)
+            .Include(r => r.Players)
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            ?? throw new InvalidOperationException("Комната не найдена.");
+
+        if (room.State != RoomState.Lobby)
+            throw new InvalidOperationException("Настройки меняются только в лобби.");
+
+        var player = room.Players.FirstOrDefault(p => p.Id == req.PlayerId)
+            ?? throw new InvalidOperationException("Игрок не найден.");
+
+        if (!player.IsHost)
+            throw new InvalidOperationException("Только хост меняет настройки.");
+
+        var s = room.Settings;
+
+        if (req.TimerEnabled.HasValue)
+            s.TimerEnabled = req.TimerEnabled.Value;
+
+        if (!string.IsNullOrWhiteSpace(req.ImagePack))
+        {
+            var packs = _images.GetPacks();
+            var pack = packs.FirstOrDefault(p =>
+                string.Equals(p.Name, req.ImagePack, StringComparison.OrdinalIgnoreCase));
+
+            if (pack.Name is null)
+                throw new InvalidOperationException($"Набор «{req.ImagePack}» не найден.");
+
+            if (pack.Count < 25)
+                throw new InvalidOperationException(
+                    $"В наборе «{pack.Name}» только {pack.Count} картинок, нужно минимум 25.");
+
+            s.ImagePack = pack.Name;
+        }
+
+        if (req.FirstSpymasterSeconds.HasValue)
+            s.FirstSpymasterSeconds = Clamp(req.FirstSpymasterSeconds.Value, 10, 600);
+
+        if (req.SpymasterSeconds.HasValue)
+            s.SpymasterSeconds = Clamp(req.SpymasterSeconds.Value, 10, 600);
+
+        if (req.OperativeSeconds.HasValue)
+            s.OperativeSeconds = Clamp(req.OperativeSeconds.Value, 10, 600);
+
+        if (req.BonusPerCorrectSeconds.HasValue)
+            s.BonusPerCorrectSeconds = Clamp(req.BonusPerCorrectSeconds.Value, 0, 120);
+
+        await _db.SaveChangesAsync(ct);
+
+        var lobby = await GetLobbyAsync(roomId, ct);
+        await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
+        return lobby;
+    }
+
+    private static int Clamp(int value, int min, int max)
+        => value < min ? min : (value > max ? max : value);
 
     public async Task<LobbyDto> AssignTeamAsync(Guid roomId, Guid playerId, TeamColor? teamColor, CancellationToken ct = default)
     {
@@ -236,7 +327,6 @@ public class RoomService
         if (!player.IsHost)
             throw new InvalidOperationException("Только хост может начать игру.");
 
-        // Проверка составов
         foreach (var team in room.Teams)
         {
             var members = room.Players.Where(p => p.TeamId == team.Id).ToList();
@@ -247,7 +337,6 @@ public class RoomService
                 throw new InvalidOperationException($"В команде {team.Color} не выбран спаймастер.");
         }
 
-        // Проверка картинок в выбранном паке — до старта, чтобы не крашилось на середине
         var pack = room.Settings.ImagePack ?? "default";
         var available = await _db.Images.CountAsync(i => i.Tags == pack && i.IsPublic, ct);
 
@@ -262,7 +351,6 @@ public class RoomService
         await _notifier.LobbyUpdatedAsync(roomId, lobby, ct);
     }
 
-    // Полный выход из комнаты. Удаляет игрока, передаёт хоста, при необходимости удаляет комнату.
     public async Task LeaveRoomAsync(Guid roomId, Guid playerId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
@@ -289,7 +377,7 @@ public class RoomService
 
         if (!room.Players.Any())
         {
-            _timer.CancelTimer(roomId);   // ← добавили
+            _timer.CancelTimer(roomId);
             _db.Rooms.Remove(room);
             await _db.SaveChangesAsync(ct);
             return;

@@ -11,17 +11,20 @@ public class GameHub : Hub
     private readonly ILogger<GameHub> _logger;
     private readonly RoomService _rooms;
     private readonly GameService _game;
+    private readonly VoteService _vote;
     private readonly AppDbContext _db;
 
     public GameHub(
         ILogger<GameHub> logger,
         RoomService rooms,
         GameService game,
+        VoteService vote,
         AppDbContext db)
     {
         _logger = logger;
         _rooms = rooms;
         _game = game;
+        _vote = vote;
         _db = db;
     }
 
@@ -41,12 +44,17 @@ public class GameHub : Hub
             .FirstOrDefaultAsync(p => p.ConnectionId == Context.ConnectionId);
         if (player is not null)
         {
+            var roomId = player.RoomId;
+            var playerId = player.Id;
+
             player.IsConnected = false;
             player.ConnectionId = null;
             await _db.SaveChangesAsync();
 
-            var lobby = await _rooms.GetLobbyAsync(player.RoomId);
-            await Clients.Group(RoomGroup(player.RoomId)).SendAsync("LobbyUpdated", lobby);
+            await _vote.OnPlayerDisconnectedAsync(roomId, playerId);
+
+            var lobby = await _rooms.GetLobbyAsync(roomId);
+            await Clients.Group(RoomGroup(roomId)).SendAsync("LobbyUpdated", lobby);
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -84,22 +92,21 @@ public class GameHub : Hub
     }
 
     public async Task LeaveRoom(Guid roomId, Guid playerId)
-{
-    // Сначала выходим из группы, чтобы не получать чужие события
-    await Groups.RemoveFromGroupAsync(Context.ConnectionId, RoomGroup(roomId));
-
-    // Очищаем ConnectionId у игрока — до удаления из БД
-    var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId);
-    if (player is not null)
     {
-        player.ConnectionId = null;
-        player.IsConnected = false;
-        await _db.SaveChangesAsync();
-    }
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, RoomGroup(roomId));
 
-    // Удаляем игрока и, если надо, комнату
-    await _rooms.LeaveRoomAsync(roomId, playerId);
-}
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId);
+        if (player is not null)
+        {
+            player.ConnectionId = null;
+            player.IsConnected = false;
+            await _db.SaveChangesAsync();
+        }
+
+        await _vote.OnPlayerDisconnectedAsync(roomId, playerId);
+
+        await _rooms.LeaveRoomAsync(roomId, playerId);
+    }
 
     // === Партия ===
 
@@ -132,7 +139,6 @@ public class GameHub : Hub
         await Clients.Caller.SendAsync("GameStateUpdated", dto);
     }
 
-    // Лёгкий сигнал группе: «состояние изменилось, каждый пусть подтянет своё»
     public async Task NotifyStateChanged(Guid roomId)
     {
         await Clients.Group(RoomGroup(roomId)).SendAsync("StateChanged");
@@ -144,24 +150,16 @@ public class GameHub : Hub
         await NotifyStateChanged(roomId);
     }
 
-    public async Task RevealCard(Guid roomId, Guid playerId, Guid cardId)
+    // Голос за карту
+    public async Task ToggleVote(Guid roomId, Guid playerId, Guid cardId)
     {
-        var result = await _game.RevealCardAsync(roomId, playerId, cardId);
+        await _vote.ToggleCardVoteAsync(roomId, playerId, cardId);
+    }
 
-        await Clients.Group(RoomGroup(roomId)).SendAsync("RevealOutcome", new
-        {
-            cardId,
-            outcome = result.Outcome.ToString(),
-            bonusSeconds = result.BonusSeconds
-        });
-
-        if (result.BonusSeconds > 0)
-        {
-            await Clients.Group(RoomGroup(roomId))
-                .SendAsync("TurnBonus", new { seconds = result.BonusSeconds });
-        }
-
-        await NotifyStateChanged(roomId);
+    // Голос за завершение хода
+    public async Task ToggleEndTurnVote(Guid roomId, Guid playerId)
+    {
+        await _vote.ToggleEndTurnVoteAsync(roomId, playerId);
     }
 
     public async Task EndTurn(Guid roomId, Guid playerId)
@@ -170,8 +168,6 @@ public class GameHub : Hub
         await NotifyStateChanged(roomId);
     }
 
-    // Закрывает партию: удаляет карты, обнуляет счёт, переводит комнату в Lobby.
-    // Может вызвать любой игрок. Хост потом жмёт "Начать игру" в лобби.
     public async Task ReturnToLobby(Guid roomId, Guid playerId)
     {
         await _game.ResetToLobbyAsync(roomId, playerId);
