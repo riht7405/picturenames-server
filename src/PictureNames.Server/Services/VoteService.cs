@@ -97,10 +97,12 @@ public class VoteService
             await db.SaveChangesAsync(ct);
         }
 
+        // Считаем ВСЕХ оперативников команды, независимо от IsConnected.
+        // Иначе, если один временно отключился — второй оказывается «один»
+        // и открывает карту без голосования. Это ломает симметрию между командами.
         var operatives = room.Players
             .Where(p => p.TeamId == room.CurrentTurnTeamId
-                     && p.Role == PlayerRole.Operative
-                     && p.IsConnected)
+                     && p.Role == PlayerRole.Operative)
             .ToList();
 
         // Один оперативник — сразу действие
@@ -165,10 +167,13 @@ public class VoteService
             return;
         }
 
+        // Здесь тоже считаем всех оперативников команды.
+        // Ушедший в оффлайн остаётся в «кворуме» — его голос просто снимается
+        // из активной сессии, но порог не уменьшается. Если он не вернётся —
+        // ходовой таймер (2 мин) сам переведёт ход.
         var operatives = room.Players
             .Where(p => p.TeamId == room.CurrentTurnTeamId
-                     && p.Role == PlayerRole.Operative
-                     && p.IsConnected)
+                     && p.Role == PlayerRole.Operative)
             .ToList();
 
         await RecalculateAsync(roomId, room, operatives, session, notifier);
