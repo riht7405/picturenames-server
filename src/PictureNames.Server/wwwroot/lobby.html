@@ -5,6 +5,8 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>PictureNames · Лобби</title>
 		<link rel="stylesheet" href="/styles.css" />
+		<script src="/theme.js"></script>
+		<script src="/sounds.js"></script>
 		<style>
 			.lobby-shell { max-width: 720px; }
 
@@ -396,9 +398,16 @@
 						<p class="tagline">Лобби</p>
 					</div>
 				</a>
-				<div class="status warn" id="status">
-					<span class="dot"></span>
-					<span class="status-text">Соединение…</span>
+				<div style="display: flex; gap: 0.5rem; align-items: center;">
+					<div class="theme-picker">
+						<button class="theme-toggle" id="theme-toggle" type="button" title="Тема оформления">🌙</button>
+						<div class="theme-menu" id="theme-menu"></div>
+					</div>
+					<button class="theme-toggle sound-toggle" type="button" title="Звук включён">🔊</button>
+					<div class="status warn" id="status">
+						<span class="dot"></span>
+						<span class="status-text">Соединение…</span>
+					</div>
 				</div>
 			</header>
 
@@ -603,6 +612,7 @@
 			&& (l.state === 'InGame' || l.state === 'Finished');
 
 			if (gameStarted) {
+			window.Sounds?.play('game-start');
 			goToGame(l);
 			return;
 			}

@@ -486,3 +486,10 @@ obj/
 *.db
 *.db-shm
 *.db-wal
+
+# Локальные наборы картинок
+src/PictureNames.Server/wwwroot/images/RihtoBaNa/
+src/PictureNames.Server/wwwroot/images/meme/
+src/PictureNames.Server/wwwroot/images/Даянская/
+src/PictureNames.Server/wwwroot/images/ИИ/
+src/PictureNames.Server/wwwroot/images/default/

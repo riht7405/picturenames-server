@@ -1,27 +1,25 @@
-/* === PictureNames · общие стили === */
+/* === PictureNames · общие стили и темы === */
 
-:root {
-    /* Фоны */
+/* ==== Тёмная (по умолчанию) ==== */
+:root,
+[data-theme="dark"] {
     --bg: #0a0a0e;
     --bg-2: #0f0f14;
+    --body-bg-image: none;
 
-    /* Стекло */
     --glass: rgba(23, 23, 28, 0.65);
     --glass-2: rgba(15, 15, 20, 0.5);
     --glass-solid: #17171c;
     --glass-hover: rgba(30, 30, 38, 0.75);
 
-    /* Границы */
     --border: rgba(255, 255, 255, 0.07);
     --border-strong: rgba(255, 255, 255, 0.12);
     --border-hover: rgba(122, 184, 255, 0.4);
 
-    /* Текст */
     --text: #e8e8e8;
     --text-dim: #8a8a94;
     --text-mute: #6a6a72;
 
-    /* Акценты */
     --accent: #7ab8ff;
     --accent-2: #b47aff;
     --accent-3: #ff9a9a;
@@ -29,7 +27,6 @@
     --warn: #ffcf7a;
     --err: #ff8a8a;
 
-    /* Команды */
     --blue-bg: #14243d;
     --blue-accent: #7ab8ff;
     --red-bg: #3d1616;
@@ -39,31 +36,521 @@
     --assassin-bg: #150020;
     --assassin-accent: #e066ff;
 
-    /* Радиусы и тени */
     --radius: 16px;
     --radius-sm: 10px;
     --radius-xs: 6px;
     --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.4);
     --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.55);
     --shadow-glow: 0 0 60px rgba(122, 184, 255, 0.08);
+
+    --brand-g1: rgba(122, 184, 255, 0.25);
+    --brand-g2: rgba(180, 122, 255, 0.25);
+
+    --orb-1: radial-gradient(circle, #2b5c9a 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #5c2b8a 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #8a2b3a 0%, transparent 70%);
+    --orb-opacity: 0.4;
+
+    --grid-line: rgba(255, 255, 255, 0.028);
+    --grid-mask: rgba(0, 0, 0, 1);
+
+    --btn-grad-1: #2e2e3c;
+    --btn-grad-2: #23232e;
+    --btn-grad-1-hover: #353545;
+    --btn-grad-2-hover: #282834;
+
+    --selection-bg: rgba(122, 184, 255, 0.28);
+    --seal-color: #3d3d46;
+
+    --body-font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-* { box-sizing: border-box; }
+/* ==== Светлая ==== */
+[data-theme="light"] {
+    --bg: #f0f1f5;
+    --bg-2: #ffffff;
+    --body-bg-image: none;
 
+    --glass: rgba(255, 255, 255, 0.75);
+    --glass-2: rgba(255, 255, 255, 0.55);
+    --glass-solid: #ffffff;
+    --glass-hover: rgba(255, 255, 255, 0.9);
+
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.14);
+    --border-hover: rgba(58, 123, 200, 0.5);
+
+    --text: #1a1a20;
+    --text-dim: #5a5a66;
+    --text-mute: #8a8a94;
+
+    --accent: #3a7bc8;
+    --accent-2: #8a4dd8;
+    --accent-3: #c43333;
+    --ok: #2a9a5a;
+    --warn: #c8921e;
+    --err: #c43333;
+
+    --blue-bg: #d6e6ff;
+    --blue-accent: #2a5fc4;
+    --red-bg: #ffd6d6;
+    --red-accent: #c43333;
+    --neutral-bg: #e4e4ec;
+    --neutral-accent: #6a6a72;
+    --assassin-bg: #f0d6ff;
+    --assassin-accent: #8a1fa8;
+
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.12);
+    --shadow-glow: 0 0 40px rgba(58, 123, 200, 0.1);
+
+    --brand-g1: rgba(58, 123, 200, 0.15);
+    --brand-g2: rgba(138, 77, 216, 0.15);
+
+    --orb-1: radial-gradient(circle, #a8c8e8 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #c8a8e8 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #e8b8b8 0%, transparent 70%);
+    --orb-opacity: 0.35;
+
+    --grid-line: rgba(0, 0, 0, 0.04);
+    --grid-mask: rgba(0, 0, 0, 0.9);
+
+    --btn-grad-1: #ffffff;
+    --btn-grad-2: #e8e8f0;
+    --btn-grad-1-hover: #ffffff;
+    --btn-grad-2-hover: #f0f0f8;
+
+    --selection-bg: rgba(58, 123, 200, 0.22);
+    --seal-color: #a8a8b0;
+
+    --body-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ==== Неон ==== */
+[data-theme="neon"] {
+    --bg: #050510;
+    --bg-2: #0a0a1a;
+    --body-bg-image: none;
+
+    --glass: rgba(15, 10, 35, 0.7);
+    --glass-2: rgba(10, 5, 25, 0.6);
+    --glass-solid: #0f0a23;
+    --glass-hover: rgba(25, 15, 50, 0.8);
+
+    --border: rgba(0, 255, 255, 0.15);
+    --border-strong: rgba(255, 0, 255, 0.2);
+    --border-hover: rgba(0, 255, 255, 0.6);
+
+    --text: #f0e8ff;
+    --text-dim: #a888d8;
+    --text-mute: #6858a0;
+
+    --accent: #00ffff;
+    --accent-2: #ff00ff;
+    --accent-3: #ff0088;
+    --ok: #00ff88;
+    --warn: #ffcc00;
+    --err: #ff0055;
+
+    --blue-bg: #001a33;
+    --blue-accent: #00ccff;
+    --red-bg: #33001a;
+    --red-accent: #ff0088;
+    --neutral-bg: #1a0a2e;
+    --neutral-accent: #8866aa;
+    --assassin-bg: #1a0022;
+    --assassin-accent: #ff00ff;
+
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 255, 0.05);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 255, 255, 0.15);
+    --shadow-glow: 0 0 80px rgba(255, 0, 255, 0.15);
+
+    --brand-g1: rgba(0, 255, 255, 0.3);
+    --brand-g2: rgba(255, 0, 255, 0.3);
+
+    --orb-1: radial-gradient(circle, #00aaff 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #aa00ff 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #ff0088 0%, transparent 70%);
+    --orb-opacity: 0.5;
+
+    --grid-line: rgba(0, 255, 255, 0.06);
+    --grid-mask: rgba(0, 0, 0, 1);
+
+    --btn-grad-1: #1a0a3e;
+    --btn-grad-2: #0f0524;
+    --btn-grad-1-hover: #2a1560;
+    --btn-grad-2-hover: #1a0a3e;
+
+    --selection-bg: rgba(0, 255, 255, 0.25);
+    --seal-color: #4a2a6a;
+
+    --body-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ==== Бумага ==== */
+[data-theme="paper"] {
+    --bg: #ece2ca;
+    --bg-2: #f5eddb;
+    --body-bg-image: none;
+
+    --glass: rgba(247, 239, 219, 0.78);
+    --glass-2: rgba(247, 239, 219, 0.55);
+    --glass-solid: #f7efdb;
+    --glass-hover: rgba(255, 250, 235, 0.9);
+
+    --border: rgba(80, 50, 20, 0.12);
+    --border-strong: rgba(80, 50, 20, 0.22);
+    --border-hover: rgba(139, 69, 19, 0.5);
+
+    --text: #2a1f12;
+    --text-dim: #6a5438;
+    --text-mute: #9a8468;
+
+    --accent: #8b4513;
+    --accent-2: #6a2d8a;
+    --accent-3: #8a1a1a;
+    --ok: #4a7a2a;
+    --warn: #a8761e;
+    --err: #8a1a1a;
+
+    --blue-bg: #b8d4e8;
+    --blue-accent: #1e4a6a;
+    --red-bg: #e8b8b8;
+    --red-accent: #6a1e1e;
+    --neutral-bg: #d8cbb0;
+    --neutral-accent: #6a5438;
+    --assassin-bg: #2a1f12;
+    --assassin-accent: #d4a088;
+
+    --shadow-card: 0 4px 12px rgba(60, 40, 20, 0.1), 0 1px 0 rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 12px 24px rgba(60, 40, 20, 0.18);
+    --shadow-glow: 0 0 40px rgba(139, 69, 19, 0.1);
+
+    --brand-g1: rgba(139, 69, 19, 0.2);
+    --brand-g2: rgba(106, 45, 138, 0.2);
+
+    --orb-1: radial-gradient(circle, #e8d8b8 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #d8c8a8 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #e8c8b8 0%, transparent 70%);
+    --orb-opacity: 0.3;
+
+    --grid-line: rgba(80, 50, 20, 0.05);
+    --grid-mask: rgba(0, 0, 0, 0.9);
+
+    --btn-grad-1: #f7efdb;
+    --btn-grad-2: #e8dcc0;
+    --btn-grad-1-hover: #fff8e8;
+    --btn-grad-2-hover: #f0e4cc;
+
+    --selection-bg: rgba(139, 69, 19, 0.22);
+    --seal-color: #a89068;
+
+    --body-font: Georgia, "Times New Roman", serif;
+}
+
+/* ==== Мрачная (Dark Souls / Bloodborne) ==== */
+[data-theme="grim"] {
+    --bg: #0a0808;
+    --bg-2: #120c0c;
+    --body-bg-image: none;
+
+    --glass: rgba(20, 15, 15, 0.78);
+    --glass-2: rgba(15, 10, 10, 0.6);
+    --glass-solid: #1a1210;
+    --glass-hover: rgba(30, 20, 18, 0.85);
+
+    --border: rgba(180, 140, 80, 0.14);
+    --border-strong: rgba(180, 140, 80, 0.24);
+    --border-hover: rgba(201, 169, 97, 0.6);
+
+    --text: #d8c8b0;
+    --text-dim: #8a7a68;
+    --text-mute: #5a4a3a;
+
+    --accent: #c9a961;
+    --accent-2: #8a1a1a;
+    --accent-3: #a04040;
+    --ok: #7a8a4a;
+    --warn: #c9a961;
+    --err: #8a1a1a;
+
+    --blue-bg: #1a2a3a;
+    --blue-accent: #6a9ab8;
+    --red-bg: #3a1010;
+    --red-accent: #c96060;
+    --neutral-bg: #2a2018;
+    --neutral-accent: #8a7a68;
+    --assassin-bg: #1a0a0a;
+    --assassin-accent: #8a1a1a;
+
+    --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(201, 169, 97, 0.06);
+    --shadow-hover: 0 20px 44px rgba(0, 0, 0, 0.8), 0 0 60px rgba(138, 26, 26, 0.15);
+    --shadow-glow: 0 0 60px rgba(201, 169, 97, 0.1);
+
+    --brand-g1: rgba(201, 169, 97, 0.25);
+    --brand-g2: rgba(138, 26, 26, 0.25);
+
+    --orb-1: radial-gradient(circle, #3a2a1a 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #4a1a1a 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #2a1a10 0%, transparent 70%);
+    --orb-opacity: 0.55;
+
+    --grid-line: rgba(201, 169, 97, 0.04);
+    --grid-mask: rgba(0, 0, 0, 1);
+
+    --btn-grad-1: #2a1f18;
+    --btn-grad-2: #1a1210;
+    --btn-grad-1-hover: #3a2a20;
+    --btn-grad-2-hover: #2a1f18;
+
+    --selection-bg: rgba(201, 169, 97, 0.25);
+    --seal-color: #4a3a2a;
+
+    --body-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ==== Мистическая (бывшая mech: фиолетовое пламя + бронза) ==== */
+[data-theme="mystic"] {
+    --bg: #0d0d12;
+    --bg-2: #15151d;
+    --body-bg-image: none;
+
+    --glass: rgba(22, 18, 30, 0.72);
+    --glass-2: rgba(15, 12, 22, 0.6);
+    --glass-solid: #1a1822;
+    --glass-hover: rgba(30, 24, 42, 0.82);
+
+    --border: rgba(180, 140, 220, 0.14);
+    --border-strong: rgba(180, 140, 220, 0.26);
+    --border-hover: rgba(205, 127, 50, 0.55);
+
+    --text: #ece2f5;
+    --text-dim: #a898b8;
+    --text-mute: #786898;
+
+    --accent: #b088e0;
+    --accent-2: #cd7f32;
+    --accent-3: #d08898;
+    --ok: #a8e0b0;
+    --warn: #e0b088;
+    --err: #e08888;
+
+    --blue-bg: #1a1540;
+    --blue-accent: #9088e0;
+    --red-bg: #2a1820;
+    --red-accent: #d08898;
+    --neutral-bg: #252030;
+    --neutral-accent: #a090a8;
+    --assassin-bg: #150018;
+    --assassin-accent: #d088ff;
+
+    --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.55), 0 0 40px rgba(176, 136, 224, 0.06);
+    --shadow-hover: 0 20px 44px rgba(0, 0, 0, 0.7), 0 0 80px rgba(176, 136, 224, 0.18);
+    --shadow-glow: 0 0 80px rgba(205, 127, 50, 0.15);
+
+    --brand-g1: rgba(176, 136, 224, 0.3);
+    --brand-g2: rgba(205, 127, 50, 0.3);
+
+    --orb-1: radial-gradient(circle, #8a2be2 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #cd7f32 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #6a1fa0 0%, transparent 70%);
+    --orb-opacity: 0.42;
+
+    --grid-line: rgba(176, 136, 224, 0.04);
+    --grid-mask: rgba(0, 0, 0, 1);
+
+    --btn-grad-1: #2a1f38;
+    --btn-grad-2: #1a1228;
+    --btn-grad-1-hover: #3a2a50;
+    --btn-grad-2-hover: #2a1f38;
+
+    --selection-bg: rgba(176, 136, 224, 0.28);
+    --seal-color: #584878;
+
+    --body-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ==== Mechromancer Zero ====
+   Технический брутализм + бетон + радиаторная решётка +
+   чёрно-оранжевый техно-пламень + фиолетовый мистический огонь. */
+[data-theme="mech"] {
+    /* Бетон */
+    --bg: #1c1c1e;
+    --bg-2: #24242a;
+
+    /* Стеклянные панели с бетонным оттенком */
+    --glass: rgba(28, 26, 26, 0.82);
+    --glass-2: rgba(20, 18, 18, 0.68);
+    --glass-solid: #1f1d1c;
+    --glass-hover: rgba(38, 34, 32, 0.88);
+
+    /* Границы — бронза/оранж */
+    --border: rgba(205, 127, 50, 0.18);
+    --border-strong: rgba(205, 127, 50, 0.32);
+    --border-hover: rgba(255, 106, 0, 0.75);
+
+    /* Текст — тёплый, индустриальный */
+    --text: #ece2d0;
+    --text-dim: #a89078;
+    --text-mute: #6e5e4e;
+
+    /* Акценты: бронза + мистический фиолет + раскалённый оранж */
+    --accent: #cd7f32;
+    --accent-2: #a855f7;
+    --accent-3: #ff6a00;
+    --ok: #7ac870;
+    --warn: #ffaa22;
+    --err: #e04040;
+
+    /* Команды — промышленный контраст */
+    --blue-bg: #1a2430;
+    --blue-accent: #6a9ec8;
+    --red-bg: #3a1808;
+    --red-accent: #ff6a00;
+    --neutral-bg: #2a2622;
+    --neutral-accent: #8a7a68;
+    --assassin-bg: #1a0a1a;
+    --assassin-accent: #a855f7;
+
+    /* Тени — тяжёлые, бруталистские */
+    --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.75),
+                   0 0 30px rgba(205, 127, 50, 0.06),
+                   inset 0 1px 0 rgba(205, 127, 50, 0.08);
+    --shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.85),
+                    0 0 60px rgba(255, 106, 0, 0.2);
+    --shadow-glow: 0 0 60px rgba(168, 85, 247, 0.18);
+
+    --brand-g1: rgba(205, 127, 50, 0.32);
+    --brand-g2: rgba(168, 85, 247, 0.32);
+
+    /* Орбы — бронзовый угль + мистический фиолет + раскалённый оранж */
+    --orb-1: radial-gradient(circle, #cd7f32 0%, transparent 70%);
+    --orb-2: radial-gradient(circle, #a855f7 0%, transparent 70%);
+    --orb-3: radial-gradient(circle, #ff6a00 0%, transparent 70%);
+    --orb-opacity: 0.4;
+
+    --grid-line: rgba(205, 127, 50, 0.05);
+    --grid-mask: rgba(0, 0, 0, 1);
+
+    --btn-grad-1: #2e2518;
+    --btn-grad-2: #1c1610;
+    --btn-grad-1-hover: #3e3020;
+    --btn-grad-2-hover: #2e2518;
+
+    --selection-bg: rgba(205, 127, 50, 0.28);
+    --seal-color: #584832;
+}
+
+/* --- Mechromancer Zero: спец-оформление --- */
+
+/* Бетон: крапины, зернистость, неоднородность */
+[data-theme="mech"] body {
+    background:
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,0.025) 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 60%, rgba(0,0,0,0.22) 1px, transparent 1.5px),
+        radial-gradient(circle at 40% 80%, rgba(255,255,255,0.015) 1px, transparent 1.5px),
+        radial-gradient(circle at 85% 15%, rgba(205,127,50,0.04) 1px, transparent 1.8px),
+        var(--bg);
+    background-size: 7px 7px, 11px 11px, 17px 17px, 23px 23px, 100% 100%;
+}
+
+/* Радиаторная решётка + техно-линии */
+[data-theme="mech"] .bg-grid {
+    background-image:
+        /* вертикальные рёбра радиатора */
+        repeating-linear-gradient(90deg,
+            transparent 0, transparent 7px,
+            rgba(205, 127, 50, 0.06) 7px, rgba(205, 127, 50, 0.06) 8px,
+            transparent 8px, transparent 15px),
+        /* горизонтальные техно-линии */
+        repeating-linear-gradient(0deg,
+            transparent 0, transparent 22px,
+            rgba(255, 106, 0, 0.05) 22px, rgba(255, 106, 0, 0.05) 23px),
+        /* базовая сетка */
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 15px 15px, 100% 44px, 44px 44px, 44px 44px;
+    mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 85%);
+}
+
+/* Резкие углы — брутализм */
+[data-theme="mech"] .glass-card,
+[data-theme="mech"] .btn,
+[data-theme="mech"] .input,
+[data-theme="mech"] .theme-toggle,
+[data-theme="mech"] .theme-menu {
+    border-radius: 4px;
+}
+
+/* Логотип: бронзовые полосы на тёмном + фиолетовое свечение */
+[data-theme="mech"] .brand-mark {
+    border-radius: 4px;
+    background:
+        repeating-linear-gradient(90deg,
+            #cd7f32 0, #cd7f32 4px,
+            transparent 4px, transparent 7px),
+        linear-gradient(135deg, var(--brand-g1), var(--brand-g2)),
+        var(--glass-solid);
+    background-blend-mode: overlay, normal, normal;
+    color: #ffaa55;
+    text-shadow: 0 0 14px rgba(205, 127, 50, 0.9),
+                 0 0 22px rgba(168, 85, 247, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(205, 127, 50, 0.3),
+        0 8px 24px rgba(0, 0, 0, 0.7),
+        0 0 40px rgba(168, 85, 247, 0.15),
+        inset 0 1px 0 rgba(205, 127, 50, 0.15);
+}
+
+/* Команды — промышленные панели */
+[data-theme="mech"] .team-block {
+    border-radius: 4px;
+    border-width: 1px;
+}
+
+/* Кнопки — стальные, с вертикальными рёбрами */
+[data-theme="mech"] .btn {
+    letter-spacing: 0.06em;
+    font-weight: 500;
+    background-image:
+        repeating-linear-gradient(90deg,
+            transparent 0, transparent 3px,
+            rgba(0, 0, 0, 0.18) 3px, rgba(0, 0, 0, 0.18) 4px),
+        linear-gradient(180deg, var(--btn-grad-1), var(--btn-grad-2));
+}
+[data-theme="mech"] .btn:hover:not(:disabled) {
+    box-shadow:
+        0 0 24px rgba(255, 106, 0, 0.3),
+        inset 0 0 12px rgba(205, 127, 50, 0.15);
+}
+
+/* Точки голосования — с меньшей пастелью */
+[data-theme="mech"] .voter-dot {
+    border-radius: 2px;
+    box-shadow: 0 0 10px currentColor,
+                0 0 2px rgba(0, 0, 0, 0.9);
+}
+
+/* ==== Базовое ==== */
+* { box-sizing: border-box; }
 html, body { height: 100%; }
 
 body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--bg);
+    font-family: var(--body-font, system-ui, sans-serif);
+    background-color: var(--bg);
+    background-image: var(--body-bg-image, none);
+    background-size: 300px 300px;
     color: var(--text);
     margin: 0;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-::selection { background: rgba(122, 184, 255, 0.28); color: #fff; }
+::selection { background: var(--selection-bg); color: var(--text); }
 
 /* === Анимированный фон === */
 .bg-orbs {
@@ -76,24 +563,24 @@ body {
     position: absolute;
     border-radius: 50%;
     filter: blur(90px);
-    opacity: 0.4;
+    opacity: var(--orb-opacity);
     will-change: transform;
 }
 .orb-1 {
     width: 460px; height: 460px;
-    background: radial-gradient(circle, #2b5c9a 0%, transparent 70%);
+    background: var(--orb-1);
     top: -120px; left: -100px;
     animation: float1 22s ease-in-out infinite;
 }
 .orb-2 {
     width: 520px; height: 520px;
-    background: radial-gradient(circle, #5c2b8a 0%, transparent 70%);
+    background: var(--orb-2);
     top: 20%; right: -160px;
     animation: float2 28s ease-in-out infinite;
 }
 .orb-3 {
     width: 400px; height: 400px;
-    background: radial-gradient(circle, #8a2b3a 0%, transparent 70%);
+    background: var(--orb-3);
     bottom: -120px; left: 30%;
     animation: float3 26s ease-in-out infinite;
 }
@@ -115,11 +602,35 @@ body {
     z-index: -1;
     pointer-events: none;
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 44px 44px;
-    mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%);
+    mask-image: radial-gradient(ellipse at 50% 40%, var(--grid-mask) 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, var(--grid-mask) 20%, transparent 75%);
+}
+
+/* Специальный фон для Mechromancer: радиаторная решётка */
+[data-theme="mech"] .bg-grid {
+    background-image:
+        /* Вертикальные «рёбра» радиатора */
+        repeating-linear-gradient(
+            90deg,
+            transparent 0px,
+            transparent 30px,
+            rgba(216, 138, 58, 0.06) 30px,
+            rgba(216, 138, 58, 0.06) 32px
+        ),
+        /* Горизонтальные стыки панелей */
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 120px,
+            rgba(216, 138, 58, 0.035) 120px,
+            rgba(216, 138, 58, 0.035) 122px
+        );
+    background-size: 100% 100%, 100% 100%;
+    mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.9) 15%, transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.9) 15%, transparent 72%);
 }
 
 /* === Общие контейнеры === */
@@ -132,7 +643,6 @@ body {
     gap: 2.5rem;
     animation: fadeIn 0.6s ease both;
 }
-
 .shell.tight {
     gap: 1.5rem;
     padding: 2rem 1.5rem;
@@ -154,7 +664,7 @@ body {
     width: 52px; height: 52px;
     border-radius: 14px;
     background:
-        linear-gradient(135deg, rgba(122,184,255,0.25), rgba(180,122,255,0.25)),
+        linear-gradient(135deg, var(--brand-g1), var(--brand-g2)),
         var(--glass-solid);
     border: 1px solid var(--border-strong);
     display: grid; place-items: center;
@@ -170,12 +680,27 @@ body {
     flex-shrink: 0;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+/* В Mechromancer — вертикальные бронзовые полосы на квадрате бренда */
+[data-theme="mech"] .brand-mark {
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 6px,
+            rgba(216, 138, 58, 0.5) 6px,
+            rgba(216, 138, 58, 0.5) 9px
+        ),
+        linear-gradient(135deg, var(--brand-g1), var(--brand-g2));
+    background-blend-mode: overlay, normal;
+    color: #f0d0a0;
+    text-shadow: 0 0 10px rgba(216, 138, 58, 0.6);
+}
 .brand:hover .brand-mark {
     transform: translateY(-2px);
     box-shadow:
         0 0 0 1px rgba(255,255,255,0.02),
         0 12px 28px rgba(0,0,0,0.55),
-        0 0 30px rgba(122,184,255,0.15),
+        0 0 30px var(--shadow-glow),
         inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .brand h1 {
@@ -252,6 +777,7 @@ body {
     -webkit-backdrop-filter: blur(14px);
     box-shadow: var(--shadow-card);
     padding: 1.5rem;
+    transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
 /* === Кнопки === */
@@ -259,7 +785,7 @@ body {
     font: inherit;
     font-size: 14px;
     padding: 0.65rem 1.2rem;
-    background: linear-gradient(180deg, #2e2e3c, #23232e);
+    background: linear-gradient(180deg, var(--btn-grad-1), var(--btn-grad-2));
     color: var(--text);
     border: 1px solid var(--border-strong);
     border-radius: 8px;
@@ -274,28 +800,23 @@ body {
 }
 .btn:hover:not(:disabled) {
     border-color: var(--accent);
-    color: #fff;
-    background: linear-gradient(180deg, #353545, #282834);
-    box-shadow: 0 0 20px rgba(122, 184, 255, 0.12);
+    color: var(--text);
+    background: linear-gradient(180deg, var(--btn-grad-1-hover), var(--btn-grad-2-hover));
+    box-shadow: 0 0 20px var(--shadow-glow);
 }
-.btn:active:not(:disabled) {
-    transform: translateY(1px);
-}
-.btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-primary {
-    background: linear-gradient(180deg, #1e3a5c, #16304d);
-    border-color: rgba(122, 184, 255, 0.4);
-    color: #cfe5ff;
+    background: linear-gradient(180deg, var(--blue-bg), var(--bg-2));
+    border-color: var(--blue-accent);
+    color: var(--blue-accent);
 }
 .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #25466e, #1a3a5c);
-    border-color: var(--accent);
-    color: #fff;
-    box-shadow: 0 0 24px rgba(122, 184, 255, 0.25);
+    background: linear-gradient(180deg, var(--blue-bg), var(--bg));
+    border-color: var(--blue-accent);
+    color: var(--text);
+    box-shadow: 0 0 24px var(--shadow-glow);
 }
 
 .btn-success {
@@ -307,7 +828,6 @@ body {
     background: linear-gradient(180deg, #234a23, #1a3a1a);
     border-color: rgba(110, 232, 154, 0.7);
     color: #c8f0c8;
-    box-shadow: 0 0 24px rgba(110, 232, 154, 0.2);
 }
 
 .btn-ghost {
@@ -315,8 +835,12 @@ body {
     color: var(--text-dim);
     border-color: var(--border);
 }
+[data-theme="light"] .btn-ghost,
+[data-theme="paper"] .btn-ghost {
+    background: rgba(0, 0, 0, 0.02);
+}
 .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(128, 128, 128, 0.08);
     color: var(--text);
     border-color: var(--border-strong);
     box-shadow: none;
@@ -342,7 +866,7 @@ body {
 }
 .input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
+    box-shadow: 0 0 0 3px var(--selection-bg);
 }
 .input::placeholder { color: var(--text-mute); }
 
@@ -360,16 +884,6 @@ body {
 .badge.blue { background: var(--blue-bg); color: var(--blue-accent); }
 .badge.red { background: var(--red-bg); color: var(--red-accent); }
 
-/* === Анимации === */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes msgIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 /* === Ошибки === */
 .error {
     color: var(--err);
@@ -382,10 +896,111 @@ body {
 .seal {
     font-family: ui-monospace, "SF Mono", monospace;
     font-size: 11px;
-    color: #3d3d46;
+    color: var(--seal-color);
     letter-spacing: 0.05em;
     text-align: center;
     margin-top: 1rem;
+}
+
+/* === Анимации === */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes msgIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Переключатель тем === */
+.theme-picker {
+    position: relative;
+    display: inline-block;
+}
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.theme-toggle:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+}
+.theme-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 16px var(--shadow-glow);
+}
+
+.theme-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 240px;
+    background: var(--glass-solid);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: var(--shadow-hover);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+.theme-menu.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+.theme-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+.theme-item:hover {
+    background: rgba(128, 128, 128, 0.08);
+}
+.theme-item.active {
+    color: var(--accent);
+    background: var(--selection-bg);
+}
+.theme-item.active::after {
+    content: '✓';
+    margin-left: auto;
+    font-size: 12px;
+}
+.theme-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
 }
 
 /* === Адаптив === */

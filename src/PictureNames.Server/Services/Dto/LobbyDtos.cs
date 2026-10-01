@@ -49,5 +49,6 @@ public record TeamDto(
     Guid Id,
     TeamColor Color,
     int Score,
-    Guid? SpymasterId
+    Guid? SpymasterId,
+    int TargetScore
 );

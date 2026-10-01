@@ -145,9 +145,13 @@ public class RoomService
             ))
             .ToList();
 
+        // В лобби карт на поле нет — ставим стандартные цели 9/8 как заглушку.
+        // Клиент лобби это поле не использует, оно нужно только в партии.
         var teams = teamsList
             .OrderBy(t => t.Color)
-            .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
+            .Select(t => new TeamDto(
+                t.Id, t.Color, t.Score, t.SpymasterId,
+                t.Color == TeamColor.Blue ? 9 : 8))
             .ToList();
 
         var host = playersList.FirstOrDefault(p => p.IsHost);

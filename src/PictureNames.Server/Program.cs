@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IGameNotifier, SignalRGameNotifier>();   // ← н
 builder.Services.AddSingleton<TurnTimerService>();
 builder.Services.AddScoped<ImagePackScanner>();// ← новое
 builder.Services.AddSingleton<VoteService>();
+builder.Services.AddSingleton<SoundService>();
 
 builder.Services.AddHostedService<RoomCleanupService>();
 
@@ -188,6 +189,11 @@ app.MapGet("/api/image-packs", (ImagePackScanner scanner) =>
         .Select(p => new { name = p.Name, count = p.Count })
         .ToList();
     return Results.Ok(packs);
+});
+
+app.MapGet("/api/sounds", (SoundService sounds) =>
+{
+    return Results.Ok(sounds.GetManifest());
 });
 
 app.Run();

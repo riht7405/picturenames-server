@@ -167,7 +167,7 @@ public class GameService
 
     // === Открытие карты ===
 
-    // playerId == null → системное открытие (по голосованию)
+    // playerId == null → открытие «по голосованию» (системное)
     public async Task<RevealResult> RevealCardAsync(
         Guid roomId, Guid? playerId, Guid cardId, CancellationToken ct = default)
     {
@@ -226,6 +226,7 @@ public class GameService
         }
         else if (CardColorMatchesTeam(card.Color, currentTeamColor))
         {
+            // Своя карта — очко текущей команде, ход продолжается
             outcome = RevealOutcome.Correct;
             currentTeam.Score++;
 
@@ -242,13 +243,31 @@ public class GameService
         }
         else if (card.Color == CardColor.Neutral)
         {
+            // Нейтральная — никто не получает очко, ход переходит
             outcome = RevealOutcome.Neutral;
             EndTurn(room, room.Settings);
         }
         else
         {
+            // Чужая карта — очко уходит ВЛАДЕЛЬЦУ карты, потом ход переходит
             outcome = RevealOutcome.WrongTeam;
-            EndTurn(room, room.Settings);
+
+            var ownerColor = card.Color == CardColor.Blue ? TeamColor.Blue : TeamColor.Red;
+            var ownerTeam = room.Teams.First(t => t.Color == ownerColor);
+
+            ownerTeam.Score++;
+
+            // Проверяем, не победил ли владелец карты прямо сейчас
+            var ownerTotal = room.Cards.Count(c => CardColorMatchesTeam(c.Color, ownerColor));
+            if (ownerTeam.Score >= ownerTotal)
+            {
+                // Владелец карты выиграл от чужой ошибки
+                room.State = RoomState.Finished;
+            }
+            else
+            {
+                EndTurn(room, room.Settings);
+            }
         }
 
         _db.Moves.Add(new Move
@@ -570,9 +589,16 @@ public class GameService
 
         var teamsList = room.Teams.ToList();
 
+        // Считаем реальное число карт каждого цвета на поле.
+        // Стартовая команда (случайная) имеет 9, вторая — 8.
+        var blueTotal = room.Cards.Count(c => c.Color == CardColor.Blue);
+        var redTotal = room.Cards.Count(c => c.Color == CardColor.Red);
+
         var teams = teamsList
             .OrderBy(t => t.Color)
-            .Select(t => new TeamDto(t.Id, t.Color, t.Score, t.SpymasterId))
+            .Select(t => new TeamDto(
+                t.Id, t.Color, t.Score, t.SpymasterId,
+                t.Color == TeamColor.Blue ? blueTotal : redTotal))
             .ToList();
 
         // Сколько оперативников онлайн в команде, чей сейчас ход
