@@ -25,6 +25,24 @@ public record ClueDto(string Word, int Number, TeamColor Team);
 
 public record VoteInfoDto(Guid PlayerId, string Color, bool IsMe);
 
+public record PlayerInGameDto(
+    Guid Id,
+    string Nickname,
+    PlayerRole Role,
+    TeamColor? TeamColor,
+    bool IsConnected,
+    string? VoteColor,
+    bool IsHost
+);
+
+public record ClueHistoryItemDto(
+    string Word,
+    int Number,
+    TeamColor Team,
+    DateTime At,
+    string? SpymasterNickname
+);
+
 public record CardForSpymasterDto(
     Guid Id, int Position, string ImageUrl, string? AltText,
     CardColor Color, bool IsRevealed,
@@ -40,11 +58,11 @@ public record CardForOperativeDto(
 );
 
 public record ActiveVoteDto(
-    string Kind,          // "Card" | "EndTurn"
-    Guid? CardId,         // null для EndTurn
+    string Kind,
+    Guid? CardId,
     int VotesCount,
     int VotesNeeded,
-    DateTime? DeadlineUtc,  // null пока порог не достигнут
+    DateTime? DeadlineUtc,
     IReadOnlyList<VoteInfoDto> Voters
 );
 
@@ -64,7 +82,9 @@ public record GameStateForOperativeDto(
     DateTime ServerNowUtc,
     DateTime? TurnDeadlineUtc,
     DateTime? SpymasterDeadlineUtc,
-    ActiveVoteDto? ActiveVote
+    ActiveVoteDto? ActiveVote,
+    IReadOnlyList<PlayerInGameDto> Players,
+    IReadOnlyList<ClueHistoryItemDto> ClueHistory
 );
 
 public record GameStateForSpymasterDto(
@@ -83,5 +103,7 @@ public record GameStateForSpymasterDto(
     DateTime ServerNowUtc,
     DateTime? TurnDeadlineUtc,
     DateTime? SpymasterDeadlineUtc,
-    ActiveVoteDto? ActiveVote
+    ActiveVoteDto? ActiveVote,
+    IReadOnlyList<PlayerInGameDto> Players,
+    IReadOnlyList<ClueHistoryItemDto> ClueHistory
 );

@@ -167,7 +167,7 @@ public class GameService
 
     // === Открытие карты ===
 
-    // playerId == null → открытие «по голосованию» (системное)
+    // playerId == null → системное открытие (по голосованию)
     public async Task<RevealResult> RevealCardAsync(
         Guid roomId, Guid? playerId, Guid cardId, CancellationToken ct = default)
     {
@@ -226,7 +226,6 @@ public class GameService
         }
         else if (CardColorMatchesTeam(card.Color, currentTeamColor))
         {
-            // Своя карта — очко текущей команде, ход продолжается
             outcome = RevealOutcome.Correct;
             currentTeam.Score++;
 
@@ -243,13 +242,11 @@ public class GameService
         }
         else if (card.Color == CardColor.Neutral)
         {
-            // Нейтральная — никто не получает очко, ход переходит
             outcome = RevealOutcome.Neutral;
             EndTurn(room, room.Settings);
         }
         else
         {
-            // Чужая карта — очко уходит ВЛАДЕЛЬЦУ карты, потом ход переходит
             outcome = RevealOutcome.WrongTeam;
 
             var ownerColor = card.Color == CardColor.Blue ? TeamColor.Blue : TeamColor.Red;
@@ -257,11 +254,9 @@ public class GameService
 
             ownerTeam.Score++;
 
-            // Проверяем, не победил ли владелец карты прямо сейчас
             var ownerTotal = room.Cards.Count(c => CardColorMatchesTeam(c.Color, ownerColor));
             if (ownerTeam.Score >= ownerTotal)
             {
-                // Владелец карты выиграл от чужой ошибки
                 room.State = RoomState.Finished;
             }
             else
@@ -329,7 +324,7 @@ public class GameService
         ScheduleTimerFor(room);
     }
 
-    // Системное завершение (по голосованию, без игрока)
+    // Системное завершение (по голосованию)
     public async Task<bool> EndTurnSystemAsync(Guid roomId, CancellationToken ct = default)
     {
         var room = await _db.Rooms
@@ -435,7 +430,6 @@ public class GameService
         var cards = state.Cards
             .Select(c =>
             {
-                // Голоса на карточке — только если голосование сейчас за карту
                 List<VoteInfoDto> voters;
                 int count;
 
@@ -479,7 +473,9 @@ public class GameService
             DateTime.UtcNow,
             EnsureUtc(state.TurnDeadlineUtc),
             EnsureUtc(state.SpymasterDeadlineUtc),
-            activeVote
+            activeVote,
+            state.Players,
+            state.ClueHistory
         );
     }
 
@@ -536,7 +532,9 @@ public class GameService
             DateTime.UtcNow,
             EnsureUtc(state.TurnDeadlineUtc),
             EnsureUtc(state.SpymasterDeadlineUtc),
-            activeVote
+            activeVote,
+            state.Players,
+            state.ClueHistory
         );
     }
 
@@ -550,7 +548,9 @@ public class GameService
         List<InternalCard> Cards, List<TeamDto> Teams,
         DateTime? TurnDeadlineUtc, DateTime? SpymasterDeadlineUtc,
         VoteService.VoteSessionSnapshot? VoteSnapshot,
-        int OperativesCount
+        int OperativesCount,
+        List<PlayerInGameDto> Players,
+        List<ClueHistoryItemDto> ClueHistory
     );
 
     private async Task<InternalState> BuildStateAsync(Guid roomId, Guid playerId, CancellationToken ct)
@@ -588,9 +588,8 @@ public class GameService
             .ToList();
 
         var teamsList = room.Teams.ToList();
+        var teamColors = teamsList.ToDictionary(t => t.Id, t => t.Color);
 
-        // Считаем реальное число карт каждого цвета на поле.
-        // Стартовая команда (случайная) имеет 9, вторая — 8.
         var blueTotal = room.Cards.Count(c => c.Color == CardColor.Blue);
         var redTotal = room.Cards.Count(c => c.Color == CardColor.Red);
 
@@ -601,11 +600,75 @@ public class GameService
                 t.Color == TeamColor.Blue ? blueTotal : redTotal))
             .ToList();
 
-        // Сколько оперативников онлайн в команде, чей сейчас ход
+        // Игроки — все, кто в комнате
+        var playerDtos = room.Players
+            .OrderBy(p => p.JoinedAt)
+            .Select(p => new PlayerInGameDto(
+                p.Id,
+                p.Nickname,
+                p.Role,
+                p.TeamId.HasValue && teamColors.TryGetValue(p.TeamId.Value, out var tc) ? tc : null,
+                p.IsConnected,
+                p.VoteColor,
+                p.IsHost
+            ))
+            .ToList();
+
+        // История подсказок (последние 50, в порядке возрастания времени)
+        var clueMoves = await _db.Moves
+            .Where(m => m.RoomId == roomId && m.Type == MoveType.Clue)
+            .OrderByDescending(m => m.At)
+            .Take(50)
+            .ToListAsync(ct);
+        clueMoves.Reverse();
+
+        var spymasterIds = clueMoves
+            .Where(m => m.PlayerId.HasValue)
+            .Select(m => m.PlayerId!.Value)
+            .Distinct()
+            .ToList();
+
+        var spymasterNames = room.Players
+            .Where(p => spymasterIds.Contains(p.Id))
+            .ToDictionary(p => p.Id, p => p.Nickname);
+
+        var clueHistory = new List<ClueHistoryItemDto>();
+        foreach (var m in clueMoves)
+        {
+            if (string.IsNullOrEmpty(m.Payload)) continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(m.Payload);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("word", out var wordEl)) continue;
+                if (!root.TryGetProperty("number", out var numEl)) continue;
+                if (!root.TryGetProperty("team", out var teamEl)) continue;
+
+                var word = wordEl.GetString() ?? "";
+                var num = numEl.GetInt32();
+                var teamStr = teamEl.GetString() ?? "";
+
+                if (string.IsNullOrEmpty(word)) continue;
+                if (!Enum.TryParse<TeamColor>(teamStr, out var teamColor)) continue;
+
+                clueHistory.Add(new ClueHistoryItemDto(
+                    word,
+                    num,
+                    teamColor,
+                    DateTime.SpecifyKind(m.At, DateTimeKind.Utc),
+                    m.PlayerId.HasValue && spymasterNames.TryGetValue(m.PlayerId.Value, out var nick) ? nick : null
+                ));
+            }
+            catch
+            {
+                // Повреждённый payload — просто пропускаем
+            }
+        }
+
         var operativesCount = room.Players.Count(p =>
             p.TeamId == room.CurrentTurnTeamId
-            && p.Role == PlayerRole.Operative
-            && p.IsConnected);
+            && p.Role == PlayerRole.Operative);
 
         return new InternalState(
             room.Id, room.Code, room.State,
@@ -614,7 +677,9 @@ public class GameService
             cards, teams,
             room.TurnDeadlineUtc, room.SpymasterDeadlineUtc,
             _vote.GetSnapshot(roomId),
-            operativesCount
+            operativesCount,
+            playerDtos,
+            clueHistory
         );
     }
 

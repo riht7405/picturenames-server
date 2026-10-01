@@ -1,768 +1,932 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PictureNames · Партия</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <script src="/theme.js"></script>
-    <script src="/sounds.js"></script>
-    <style>
-        .game-shell { max-width: 960px; }
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>PictureNames · Партия</title>
+		<link rel="stylesheet" href="/styles.css" />
+		<script src="/theme.js"></script>
+		<script src="/sounds.js"></script>
+		<style>
+			.game-shell { max-width: 960px; }
 
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.8rem;
-            padding: 0.8rem 1rem;
-            background: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: var(--shadow-card);
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            position: relative;
-            z-index: 50;
-        }
-        .topbar .left {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .topbar .right {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-            flex-wrap: wrap;
-            position: relative;
-            z-index: 60;
-        }
+			.topbar {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 0.8rem;
+			padding: 0.8rem 1rem;
+			background: var(--glass);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			box-shadow: var(--shadow-card);
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+			position: relative;
+			z-index: 50;
+			}
+			.topbar .left {
+			display: flex;
+			gap: 0.8rem;
+			align-items: center;
+			flex-wrap: wrap;
+			}
+			.topbar .right {
+			display: flex;
+			gap: 0.8rem;
+			align-items: center;
+			flex-wrap: wrap;
+			position: relative;
+			z-index: 60;
+			}
 
-        .theme-picker {
-            position: relative;
-            z-index: 70;
-        }
+			.theme-picker {
+			position: relative;
+			z-index: 70;
+			}
 
-        .room-code {
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 13px;
-            letter-spacing: 0.25em;
-            color: var(--text-dim);
-        }
+			.room-code {
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 13px;
+			letter-spacing: 0.25em;
+			color: var(--text-dim);
+			}
 
-        .turn-indicator {
-            padding: 0.35rem 0.85rem;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-        }
-        .turn-indicator.Blue {
-            background: var(--blue-bg);
-            color: var(--blue-accent);
-            box-shadow: 0 0 18px rgba(122, 184, 255, 0.3),
-                        inset 0 0 0 1px rgba(122, 184, 255, 0.3);
-        }
-        .turn-indicator.Red {
-            background: var(--red-bg);
-            color: var(--red-accent);
-            box-shadow: 0 0 18px rgba(255, 154, 154, 0.3),
-                        inset 0 0 0 1px rgba(255, 154, 154, 0.3);
-        }
-        .turn-indicator.none {
-            background: var(--neutral-bg);
-            color: var(--text-dim);
-        }
+			.turn-indicator {
+			padding: 0.35rem 0.85rem;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 500;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			transition: all 0.3s ease;
+			}
+			.turn-indicator.Blue {
+			background: var(--blue-bg);
+			color: var(--blue-accent);
+			box-shadow: 0 0 18px rgba(122, 184, 255, 0.3),
+			inset 0 0 0 1px rgba(122, 184, 255, 0.3);
+			}
+			.turn-indicator.Red {
+			background: var(--red-bg);
+			color: var(--red-accent);
+			box-shadow: 0 0 18px rgba(255, 154, 154, 0.3),
+			inset 0 0 0 1px rgba(255, 154, 154, 0.3);
+			}
+			.turn-indicator.none {
+			background: var(--neutral-bg);
+			color: var(--text-dim);
+			}
 
-        .turn-timer {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.35rem 0.85rem;
-            border-radius: 999px;
-            background: var(--neutral-bg);
-            border: 1px solid var(--border);
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 15px;
-            font-weight: 500;
-            letter-spacing: 0.06em;
-            color: var(--text);
-            transition: all 0.3s ease;
-            position: relative;
-            min-width: 88px;
-            justify-content: center;
-        }
-        .turn-timer[hidden] { display: none; }
+			.turn-timer {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.35rem 0.85rem;
+			border-radius: 999px;
+			background: var(--neutral-bg);
+			border: 1px solid var(--border);
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 15px;
+			font-weight: 500;
+			letter-spacing: 0.06em;
+			color: var(--text);
+			transition: all 0.3s ease;
+			position: relative;
+			min-width: 88px;
+			justify-content: center;
+			}
+			.turn-timer[hidden] { display: none; }
 
-        .turn-timer.blue {
-            background: var(--blue-bg);
-            border-color: rgba(122, 184, 255, 0.35);
-            color: var(--blue-accent);
-        }
-        .turn-timer.red {
-            background: var(--red-bg);
-            border-color: rgba(255, 154, 154, 0.35);
-            color: var(--red-accent);
-        }
+			.turn-timer.blue {
+			background: var(--blue-bg);
+			border-color: rgba(122, 184, 255, 0.35);
+			color: var(--blue-accent);
+			}
+			.turn-timer.red {
+			background: var(--red-bg);
+			border-color: rgba(255, 154, 154, 0.35);
+			color: var(--red-accent);
+			}
 
-        .turn-timer.overtime {
-            background: linear-gradient(180deg, #1a0a1f, #0f0015);
-            border-color: rgba(230, 100, 255, 0.7);
-            color: #e066ff;
-            box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
-                        inset 0 0 10px rgba(200, 60, 230, 0.25);
-            animation: timer-overtime-pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes timer-overtime-pulse {
-            0%, 100% {
-                box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
-                            inset 0 0 10px rgba(200, 60, 230, 0.25);
-            }
-            50% {
-                box-shadow: 0 0 32px rgba(230, 100, 255, 0.9),
-                            inset 0 0 16px rgba(230, 100, 255, 0.5);
-            }
-        }
+			.turn-timer.overtime {
+			background: linear-gradient(180deg, #1a0a1f, #0f0015);
+			border-color: rgba(230, 100, 255, 0.7);
+			color: #e066ff;
+			box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+			inset 0 0 10px rgba(200, 60, 230, 0.25);
+			animation: timer-overtime-pulse 1.4s ease-in-out infinite;
+			}
+			@keyframes timer-overtime-pulse {
+			0%, 100% {
+			box-shadow: 0 0 18px rgba(200, 60, 230, 0.55),
+			inset 0 0 10px rgba(200, 60, 230, 0.25);
+			}
+			50% {
+			box-shadow: 0 0 32px rgba(230, 100, 255, 0.9),
+			inset 0 0 16px rgba(230, 100, 255, 0.5);
+			}
+			}
 
-        .turn-timer.urgent {
-            animation: timer-urgent 0.6s ease-in-out infinite;
-        }
-        @keyframes timer-urgent {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
+			.turn-timer.urgent {
+			animation: timer-urgent 0.6s ease-in-out infinite;
+			}
+			@keyframes timer-urgent {
+			0%, 100% { transform: scale(1); }
+			50% { transform: scale(1.05); }
+			}
 
-        .timer-bonus {
-            position: absolute;
-            top: -6px;
-            right: -8px;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--ok);
-            background: rgba(10, 30, 15, 0.9);
-            border: 1px solid rgba(110, 232, 154, 0.5);
-            padding: 1px 6px;
-            border-radius: 6px;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(0);
-            transition: opacity 0.2s ease;
-        }
-        .timer-bonus.show {
-            animation: bonus-float 1.4s ease-out forwards;
-        }
-        @keyframes bonus-float {
-            0% { opacity: 0; transform: translateY(0) scale(0.7); }
-            15% { opacity: 1; transform: translateY(-4px) scale(1.1); }
-            100% { opacity: 0; transform: translateY(-22px) scale(1); }
-        }
+			.timer-bonus {
+			position: absolute;
+			top: -6px;
+			right: -8px;
+			font-size: 11px;
+			font-weight: 600;
+			color: var(--ok);
+			background: rgba(10, 30, 15, 0.9);
+			border: 1px solid rgba(110, 232, 154, 0.5);
+			padding: 1px 6px;
+			border-radius: 6px;
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(0);
+			transition: opacity 0.2s ease;
+			}
+			.timer-bonus.show {
+			animation: bonus-float 1.4s ease-out forwards;
+			}
+			@keyframes bonus-float {
+			0% { opacity: 0; transform: translateY(0) scale(0.7); }
+			15% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+			100% { opacity: 0; transform: translateY(-22px) scale(1); }
+			}
 
-        .score {
-            display: flex;
-            gap: 0.7rem;
-            font-family: ui-monospace, monospace;
-            font-size: 13px;
-            letter-spacing: 0.05em;
-        }
-        .score .Blue {
-            color: var(--blue-accent);
-            text-shadow: 0 0 12px rgba(122, 184, 255, 0.4);
-        }
-        .score .Red {
-            color: var(--red-accent);
-            text-shadow: 0 0 12px rgba(255, 154, 154, 0.4);
-        }
+			.score {
+			display: flex;
+			gap: 0.7rem;
+			font-family: ui-monospace, monospace;
+			font-size: 13px;
+			letter-spacing: 0.05em;
+			}
+			.score .Blue {
+			color: var(--blue-accent);
+			text-shadow: 0 0 12px rgba(122, 184, 255, 0.4);
+			}
+			.score .Red {
+			color: var(--red-accent);
+			text-shadow: 0 0 12px rgba(255, 154, 154, 0.4);
+			}
 
-        .role-badge {
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border);
-        }
-        .role-badge.blue {
-            color: var(--blue-accent);
-            border-color: rgba(122, 184, 255, 0.25);
-            background: rgba(122, 184, 255, 0.06);
-        }
-        .role-badge.red {
-            color: var(--red-accent);
-            border-color: rgba(255, 154, 154, 0.25);
-            background: rgba(255, 154, 154, 0.06);
-        }
+			.role-badge {
+			font-size: 11px;
+			font-weight: 500;
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			color: var(--text-dim);
+			padding: 0.3rem 0.6rem;
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border);
+			}
+			.role-badge.blue {
+			color: var(--blue-accent);
+			border-color: rgba(122, 184, 255, 0.25);
+			background: rgba(122, 184, 255, 0.06);
+			}
+			.role-badge.red {
+			color: var(--red-accent);
+			border-color: rgba(255, 154, 154, 0.25);
+			background: rgba(255, 154, 154, 0.06);
+			}
 
-        .clue-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.1rem;
-            background: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: var(--shadow-card);
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            min-height: 60px;
-        }
-        .clue-panel.hidden { display: none; }
+			.clue-panel {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 1rem;
+			padding: 0.9rem 1.1rem;
+			background: var(--glass);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			box-shadow: var(--shadow-card);
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+			min-height: 60px;
+			}
+			.clue-panel.hidden { display: none; }
 
-        .clue-display {
-            font-family: ui-monospace, "SF Mono", monospace;
-            font-size: 17px;
-            color: var(--text);
-            letter-spacing: 0.05em;
-        }
-        .clue-display .num {
-            color: var(--text-dim);
-            margin-left: 0.5rem;
-        }
-        .clue-display .team-blue {
-            color: var(--blue-accent);
-            text-shadow: 0 0 14px rgba(122, 184, 255, 0.4);
-        }
-        .clue-display .team-red {
-            color: var(--red-accent);
-            text-shadow: 0 0 14px rgba(255, 154, 154, 0.4);
-        }
+			.clue-display {
+			font-family: ui-monospace, "SF Mono", monospace;
+			font-size: 17px;
+			color: var(--text);
+			letter-spacing: 0.05em;
+			}
+			.clue-display .num {
+			color: var(--text-dim);
+			margin-left: 0.5rem;
+			}
+			.clue-display .team-blue {
+			color: var(--blue-accent);
+			text-shadow: 0 0 14px rgba(122, 184, 255, 0.4);
+			}
+			.clue-display .team-red {
+			color: var(--red-accent);
+			text-shadow: 0 0 14px rgba(255, 154, 154, 0.4);
+			}
 
-        .clue-controls {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .clue-inputs {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        .clue-inputs input {
-            font: inherit;
-            font-size: 14px;
-            padding: 0.55rem 0.75rem;
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border-strong);
-            border-radius: 8px;
-            outline: none;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .clue-inputs input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
-        }
-        .clue-inputs input[type="text"] { width: 180px; }
-        .clue-inputs input[type="number"] { width: 70px; }
+			.clue-controls {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+			}
+			.clue-inputs {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			}
+			.clue-inputs input {
+			font: inherit;
+			font-size: 14px;
+			padding: 0.55rem 0.75rem;
+			background: var(--bg);
+			color: var(--text);
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			outline: none;
+			transition: border-color 0.2s ease, box-shadow 0.2s ease;
+			}
+			.clue-inputs input:focus {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px rgba(122, 184, 255, 0.14);
+			}
+			.clue-inputs input[type="text"] { width: 180px; }
+			.clue-inputs input[type="number"] { width: 70px; }
 
-        .clue-controls button {
-            font: inherit;
-            font-size: 14px;
-            padding: 0.55rem 1.1rem;
-            background: linear-gradient(180deg, #2e2e3c, #23232e);
-            color: var(--text);
-            border: 1px solid var(--border-strong);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .clue-controls button:hover:not(:disabled) {
-            border-color: var(--accent);
-            color: #fff;
-            background: linear-gradient(180deg, #353545, #282834);
-        }
-        .clue-controls button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+			.clue-controls button {
+			font: inherit;
+			font-size: 14px;
+			padding: 0.55rem 1.1rem;
+			background: linear-gradient(180deg, #2e2e3c, #23232e);
+			color: var(--text);
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			}
+			.clue-controls button:hover:not(:disabled) {
+			border-color: var(--accent);
+			color: #fff;
+			background: linear-gradient(180deg, #353545, #282834);
+			}
+			.clue-controls button:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			}
 
-        #btn-end-turn {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: linear-gradient(180deg, #3a2a1a, #2b1f13);
-            border-color: rgba(255, 207, 122, 0.35);
-            color: var(--warn);
-            padding-bottom: 0.6rem;
-        }
-        #btn-end-turn:hover {
-            background: linear-gradient(180deg, #4a3a23, #3a2a1a);
-            border-color: rgba(255, 207, 122, 0.7);
-            color: #ffe4b0;
-            box-shadow: 0 0 22px rgba(255, 207, 122, 0.2);
-        }
-        #btn-end-turn.voting {
-            border-color: rgba(255, 207, 122, 0.9);
-            box-shadow: 0 0 22px rgba(255, 207, 122, 0.55),
-                        inset 0 0 8px rgba(255, 207, 122, 0.2);
-            animation: voting-pulse 1.1s ease-in-out infinite;
-        }
+			#btn-end-turn {
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			background: linear-gradient(180deg, #3a2a1a, #2b1f13);
+			border-color: rgba(255, 207, 122, 0.35);
+			color: var(--warn);
+			padding-bottom: 0.6rem;
+			}
+			#btn-end-turn:hover {
+			background: linear-gradient(180deg, #4a3a23, #3a2a1a);
+			border-color: rgba(255, 207, 122, 0.7);
+			color: #ffe4b0;
+			box-shadow: 0 0 22px rgba(255, 207, 122, 0.2);
+			}
+			#btn-end-turn.voting {
+			border-color: rgba(255, 207, 122, 0.9);
+			box-shadow: 0 0 22px rgba(255, 207, 122, 0.55),
+			inset 0 0 8px rgba(255, 207, 122, 0.2);
+			animation: voting-pulse 1.1s ease-in-out infinite;
+			}
 
-        .end-turn-voters {
-            display: inline-flex;
-            gap: 3px;
-            margin-left: 2px;
-        }
-        .end-turn-voters .voter-dot {
-            width: 9px;
-            height: 9px;
-        }
-        .end-turn-voters .voter-dot.me {
-            outline-width: 1px;
-            outline-offset: 0;
-        }
+			.end-turn-voters {
+			display: inline-flex;
+			gap: 3px;
+			margin-left: 2px;
+			}
+			.end-turn-voters .voter-dot {
+			width: 9px;
+			height: 9px;
+			}
+			.end-turn-voters .voter-dot.me {
+			outline-width: 1px;
+			outline-offset: 0;
+			}
 
-        .end-turn-progress {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 4px;
-            background: rgba(0, 0, 0, 0.45);
-            border-radius: 0 0 6px 6px;
-            overflow: hidden;
-        }
-        .end-turn-progress[hidden] { display: none; }
-        .end-turn-progress .fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
-            box-shadow: 0 0 8px rgba(255, 207, 122, 0.7);
-        }
+			.end-turn-progress {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 4px;
+			background: rgba(0, 0, 0, 0.45);
+			border-radius: 0 0 6px 6px;
+			overflow: hidden;
+			}
+			.end-turn-progress[hidden] { display: none; }
+			.end-turn-progress .fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
+			box-shadow: 0 0 8px rgba(255, 207, 122, 0.7);
+			}
 
-        .board {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.6rem;
-            width: 100%;
-        }
+			.board {
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			gap: 0.6rem;
+			width: 100%;
+			}
 
-        .card {
-            position: relative;
-            aspect-ratio: 1 / 1;
-            background: var(--glass-solid);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            cursor: default;
-            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
-                        box-shadow 0.2s ease,
-                        border-color 0.2s ease;
-            border: 2px solid transparent;
-        }
-        .card img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
+			.card {
+			position: relative;
+			aspect-ratio: 1 / 1;
+			background: var(--glass-solid);
+			border-radius: var(--radius-sm);
+			overflow: hidden;
+			cursor: default;
+			transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+			box-shadow 0.2s ease,
+			border-color 0.2s ease;
+			border: 2px solid transparent;
+			}
+			.card img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+			user-select: none;
+			-webkit-user-drag: none;
+			}
 
-        .card.revealable { cursor: pointer; }
-        .card.revealable:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6),
-                        0 0 30px rgba(122, 184, 255, 0.15);
-            border-color: rgba(122, 184, 255, 0.4);
-        }
+			.card.revealable { cursor: pointer; }
+			.card.revealable:hover {
+			transform: translateY(-3px) scale(1.02);
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6),
+			0 0 30px rgba(122, 184, 255, 0.15);
+			border-color: rgba(122, 184, 255, 0.4);
+			}
 
-        .card.spymaster .tint {
-            position: absolute;
-            inset: 0;
-            mix-blend-mode: multiply;
-            pointer-events: none;
-        }
-        .card.spymaster.blue {
-            box-shadow: 0 0 14px rgba(80, 150, 255, 0.55),
-                        inset 0 0 10px rgba(80, 150, 255, 0.3);
-            border-color: rgba(80, 150, 255, 0.65);
-        }
-        .card.spymaster.red {
-            box-shadow: 0 0 14px rgba(255, 100, 100, 0.55),
-                        inset 0 0 10px rgba(255, 100, 100, 0.3);
-            border-color: rgba(255, 100, 100, 0.65);
-        }
-        .card.spymaster.neutral {
-            box-shadow: 0 0 10px rgba(140, 140, 150, 0.35);
-            border-color: rgba(140, 140, 150, 0.45);
-        }
-        .card.spymaster.assassin {
-            box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
-                        inset 0 0 15px rgba(200, 60, 230, 0.7);
-            border-color: rgba(230, 100, 255, 1);
-            animation: assassin-pulse 2s ease-in-out infinite;
-        }
-        @keyframes assassin-pulse {
-            0%, 100% {
-                box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
-                            inset 0 0 15px rgba(200, 60, 230, 0.7);
-            }
-            50% {
-                box-shadow: 0 0 45px rgba(230, 100, 255, 1),
-                            inset 0 0 25px rgba(230, 100, 255, 0.9);
-            }
-        }
+			.card.spymaster .tint {
+			position: absolute;
+			inset: 0;
+			mix-blend-mode: multiply;
+			pointer-events: none;
+			}
+			.card.spymaster.blue {
+			box-shadow: 0 0 14px rgba(80, 150, 255, 0.55),
+			inset 0 0 10px rgba(80, 150, 255, 0.3);
+			border-color: rgba(80, 150, 255, 0.65);
+			}
+			.card.spymaster.red {
+			box-shadow: 0 0 14px rgba(255, 100, 100, 0.55),
+			inset 0 0 10px rgba(255, 100, 100, 0.3);
+			border-color: rgba(255, 100, 100, 0.65);
+			}
+			.card.spymaster.neutral {
+			box-shadow: 0 0 10px rgba(140, 140, 150, 0.35);
+			border-color: rgba(140, 140, 150, 0.45);
+			}
+			.card.spymaster.assassin {
+			box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
+			inset 0 0 15px rgba(200, 60, 230, 0.7);
+			border-color: rgba(230, 100, 255, 1);
+			animation: assassin-pulse 2s ease-in-out infinite;
+			}
+			@keyframes assassin-pulse {
+			0%, 100% {
+			box-shadow: 0 0 25px rgba(200, 60, 230, 0.95),
+			inset 0 0 15px rgba(200, 60, 230, 0.7);
+			}
+			50% {
+			box-shadow: 0 0 45px rgba(230, 100, 255, 1),
+			inset 0 0 25px rgba(230, 100, 255, 0.9);
+			}
+			}
 
-        .card.spymaster.blue .tint { background: rgba(80, 150, 255, 0.7); }
-        .card.spymaster.red .tint { background: rgba(255, 100, 100, 0.7); }
-        .card.spymaster.neutral .tint { background: rgba(120, 120, 130, 0.6); }
-        .card.spymaster.assassin .tint { background: rgba(140, 20, 180, 0.9); }
+			.card.spymaster.blue .tint { background: rgba(80, 150, 255, 0.7); }
+			.card.spymaster.red .tint { background: rgba(255, 100, 100, 0.7); }
+			.card.spymaster.neutral .tint { background: rgba(120, 120, 130, 0.6); }
+			.card.spymaster.assassin .tint { background: rgba(140, 20, 180, 0.9); }
 
-        .card.revealed.blue {
-            background: var(--blue-bg);
-            border-color: var(--blue-accent);
-            box-shadow: 0 0 22px rgba(80, 150, 255, 0.45);
-        }
-        .card.revealed.red {
-            background: var(--red-bg);
-            border-color: var(--red-accent);
-            box-shadow: 0 0 22px rgba(255, 100, 100, 0.45);
-        }
-        .card.revealed.neutral {
-            background: var(--neutral-bg);
-            border-color: var(--neutral-accent);
-            box-shadow: 0 0 12px rgba(140, 140, 150, 0.3);
-        }
-        .card.revealed.assassin {
-            background: var(--assassin-bg);
-            border-color: var(--assassin-accent);
-            box-shadow: 0 0 35px rgba(200, 60, 230, 0.9);
-        }
-        .card.revealed img { opacity: 0.35; }
-        .card.revealed { cursor: default; }
+			.card.revealed.blue {
+			background: var(--blue-bg);
+			border-color: var(--blue-accent);
+			box-shadow: 0 0 22px rgba(80, 150, 255, 0.45);
+			}
+			.card.revealed.red {
+			background: var(--red-bg);
+			border-color: var(--red-accent);
+			box-shadow: 0 0 22px rgba(255, 100, 100, 0.45);
+			}
+			.card.revealed.neutral {
+			background: var(--neutral-bg);
+			border-color: var(--neutral-accent);
+			box-shadow: 0 0 12px rgba(140, 140, 150, 0.3);
+			}
+			.card.revealed.assassin {
+			background: var(--assassin-bg);
+			border-color: var(--assassin-accent);
+			box-shadow: 0 0 35px rgba(200, 60, 230, 0.9);
+			}
+			.card.revealed img { opacity: 0.35; }
+			.card.revealed { cursor: default; }
 
-        .card .badge {
-            position: absolute;
-            top: 6px;
-            right: 8px;
-            font-family: ui-monospace, monospace;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-        .card.revealed .badge { opacity: 1; }
+			.card .badge {
+			position: absolute;
+			top: 6px;
+			right: 8px;
+			font-family: ui-monospace, monospace;
+			font-size: 11px;
+			padding: 2px 6px;
+			border-radius: 4px;
+			background: rgba(0, 0, 0, 0.6);
+			color: #fff;
+			opacity: 0;
+			transition: opacity 0.2s;
+			pointer-events: none;
+			}
+			.card.revealed .badge { opacity: 1; }
 
-        .card-voters {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            display: flex;
-            gap: 4px;
-            z-index: 3;
-            pointer-events: none;
-        }
-        .voter-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 1px solid rgba(0, 0, 0, 0.5);
-            box-shadow: 0 0 8px currentColor;
-            transition: transform 0.15s ease;
-        }
-        .voter-dot.me {
-            outline: 2px solid rgba(255, 255, 255, 0.85);
-            outline-offset: 1px;
-            transform: scale(1.1);
-        }
+			.card-voters {
+			position: absolute;
+			top: 6px;
+			left: 6px;
+			display: flex;
+			gap: 4px;
+			z-index: 3;
+			pointer-events: none;
+			}
+			.voter-dot {
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			border: 1px solid rgba(0, 0, 0, 0.5);
+			box-shadow: 0 0 8px currentColor;
+			transition: transform 0.15s ease;
+			}
+			.voter-dot.me {
+			outline: 2px solid rgba(255, 255, 255, 0.85);
+			outline-offset: 1px;
+			transform: scale(1.1);
+			}
 
-        .card.voting {
-            border-color: rgba(255, 207, 122, 0.75);
-            box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
-                        inset 0 0 12px rgba(255, 207, 122, 0.25);
-            animation: voting-pulse 1.1s ease-in-out infinite;
-        }
-        @keyframes voting-pulse {
-            0%, 100% {
-                box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
-                            inset 0 0 12px rgba(255, 207, 122, 0.25);
-            }
-            50% {
-                box-shadow: 0 0 44px rgba(255, 207, 122, 0.85),
-                            inset 0 0 18px rgba(255, 207, 122, 0.5);
-            }
-        }
+			.card.voting {
+			border-color: rgba(255, 207, 122, 0.75);
+			box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
+			inset 0 0 12px rgba(255, 207, 122, 0.25);
+			animation: voting-pulse 1.1s ease-in-out infinite;
+			}
+			@keyframes voting-pulse {
+			0%, 100% {
+			box-shadow: 0 0 28px rgba(255, 207, 122, 0.5),
+			inset 0 0 12px rgba(255, 207, 122, 0.25);
+			}
+			50% {
+			box-shadow: 0 0 44px rgba(255, 207, 122, 0.85),
+			inset 0 0 18px rgba(255, 207, 122, 0.5);
+			}
+			}
 
-        .card-vote-progress {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 6px;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 4;
-            overflow: hidden;
-        }
-        .card-vote-progress > .fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
-            box-shadow: 0 0 10px rgba(255, 207, 122, 0.7);
-        }
+			.card-vote-progress {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 6px;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 4;
+			overflow: hidden;
+			}
+			.card-vote-progress > .fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, #ffcf7a, #ff8a8a);
+			box-shadow: 0 0 10px rgba(255, 207, 122, 0.7);
+			}
 
-        .card .vote-count-badge {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            background: rgba(0, 0, 0, 0.75);
-            border: 1px solid rgba(255, 207, 122, 0.6);
-            color: #ffcf7a;
-            font-size: 11px;
-            font-family: ui-monospace, monospace;
-            padding: 2px 7px;
-            border-radius: 10px;
-            z-index: 3;
-            pointer-events: none;
-        }
+			.card .vote-count-badge {
+			position: absolute;
+			top: 6px;
+			left: 6px;
+			background: rgba(0, 0, 0, 0.75);
+			border: 1px solid rgba(255, 207, 122, 0.6);
+			color: #ffcf7a;
+			font-size: 11px;
+			font-family: ui-monospace, monospace;
+			padding: 2px 7px;
+			border-radius: 10px;
+			z-index: 3;
+			pointer-events: none;
+			}
 
-        .finish-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 5, 10, 0.75);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            display: grid;
-            place-items: center;
-            z-index: 100;
-            padding: 1rem;
-            animation: fadeIn 0.35s ease both;
-        }
-        .finish-overlay.hidden { display: none; }
+			/* === Панели команд === */
+			.teams-info {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 1rem;
+			margin-top: 1.5rem;
+			width: 100%;
+			}
+			@media (max-width: 720px) {
+			.teams-info { grid-template-columns: 1fr; }
+			}
 
-        .finish-card {
-            background: var(--glass);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius);
-            padding: 2.5rem;
-            text-align: center;
-            box-shadow: var(--shadow-hover);
-            max-width: 480px;
-            width: 100%;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-        .finish-card h1 {
-            font-weight: 300;
-            margin: 0 0 1rem;
-            letter-spacing: 0.05em;
-            font-size: 28px;
-        }
-        .finish-card p {
-            color: var(--text-dim);
-            margin: 0 0 1.5rem;
-            font-size: 14px;
-        }
-        .finish-buttons {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .finish-buttons > * { flex: 1; min-width: 140px; }
+			.team-panel {
+			background: var(--glass);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			padding: 0.9rem 1rem;
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			box-shadow: var(--shadow-card);
+			}
+			.team-panel.Blue { border-left: 3px solid var(--blue-accent); }
+			.team-panel.Red  { border-left: 3px solid var(--red-accent); }
 
-        .status-line {
-            margin-top: 1rem;
-            font-size: 13px;
-            color: var(--text-mute);
-            min-height: 1.2rem;
-            text-align: center;
-            transition: color 0.2s ease;
-        }
-        .error-line {
-            margin-top: 0.5rem;
-            font-size: 13px;
-            color: var(--err);
-            min-height: 1.2rem;
-            text-align: center;
-        }
+			.team-panel h3 {
+			margin: 0 0 0.8rem;
+			font-size: 11px;
+			font-weight: 500;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
+			}
+			.team-panel.Blue h3 { color: var(--blue-accent); }
+			.team-panel.Red h3  { color: var(--red-accent); }
 
-        @media (max-width: 640px) {
-            .board { gap: 0.4rem; }
-            .clue-inputs input[type="text"] { width: 130px; }
-            .topbar { font-size: 12px; }
-            .room-code { letter-spacing: 0.15em; }
-            .finish-card { padding: 1.8rem; }
-            .finish-card h1 { font-size: 22px; }
-            .voter-dot { width: 10px; height: 10px; }
-        }
+			.team-players {
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			margin-bottom: 0.8rem;
+			}
+			.player-row {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.35rem 0.55rem;
+			font-size: 13px;
+			border-radius: 6px;
+			background: rgba(0, 0, 0, 0.2);
+			}
+			.player-row.spymaster {
+			background: rgba(255, 207, 122, 0.08);
+			border: 1px solid rgba(255, 207, 122, 0.18);
+			}
+			.player-row.offline {
+			opacity: 0.5;
+			}
+			.player-row .p-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			flex-shrink: 0;
+			border: 1px solid rgba(0, 0, 0, 0.4);
+			box-shadow: 0 0 6px currentColor;
+			}
+			.player-row .p-nick {
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			}
+			.player-row .p-role {
+			font-size: 10px;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			color: var(--text-mute);
+			flex-shrink: 0;
+			}
+			.player-row .p-crown {
+			font-size: 11px;
+			flex-shrink: 0;
+			}
 
-        @media (prefers-reduced-motion: reduce) {
-            .card.spymaster.assassin { animation: none; }
-            .turn-timer.overtime { animation: none; }
-            .turn-timer.urgent { animation: none; }
-            .card.voting { animation: none; }
-            #btn-end-turn.voting { animation: none; }
-        }
-    </style>
-</head>
-<body>
+			.team-clues-title {
+			font-size: 10px;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
+			color: var(--text-mute);
+			margin: 0.4rem 0 0.3rem;
+			padding-top: 0.6rem;
+			border-top: 1px solid var(--border);
+			}
+			.team-clues {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+			max-height: 160px;
+			overflow-y: auto;
+			scrollbar-width: thin;
+			scrollbar-color: rgba(255,255,255,0.12) transparent;
+			}
+			.team-clues::-webkit-scrollbar { width: 5px; }
+			.team-clues::-webkit-scrollbar-thumb {
+			background: rgba(255,255,255,0.1);
+			border-radius: 3px;
+			}
 
-<div class="bg-orbs" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-</div>
-<div class="bg-grid" aria-hidden="true"></div>
+			.team-clues .empty-clues {
+			font-size: 12px;
+			color: var(--text-mute);
+			font-style: italic;
+			padding: 0.3rem 0;
+			text-align: center;
+			}
 
-<main class="shell game-shell">
+			.clue-row {
+			display: flex;
+			align-items: baseline;
+			gap: 0.5rem;
+			padding: 0.3rem 0.55rem;
+			font-size: 13px;
+			border-radius: 5px;
+			background: rgba(0, 0, 0, 0.15);
+			}
+			.clue-row .c-word {
+			font-family: ui-monospace, monospace;
+			font-weight: 500;
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			}
+			.clue-row .c-num {
+			font-family: ui-monospace, monospace;
+			font-size: 12px;
+			color: var(--text-dim);
+			flex-shrink: 0;
+			}
+			.clue-row .c-author {
+			font-size: 11px;
+			color: var(--text-mute);
+			flex-shrink: 0;
+			max-width: 100px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			}
 
-    <div class="topbar">
-        <div class="left">
-            <span class="room-code" id="room-code">----</span>
-            <span class="turn-indicator none" id="turn">—</span>
-            <div class="turn-timer" id="turn-timer" hidden>
-                <span id="timer-value">--:--</span>
-                <span class="timer-bonus" id="timer-bonus">+15</span>
-            </div>
-        </div>
-        <div class="right">
-            <span class="score">
-                <span class="Blue" id="score-blue">0/9</span>
-                <span class="Red" id="score-red">0/8</span>
-            </span>
-            <span class="role-badge" id="my-role">—</span>
-            <div class="theme-picker">
-                <button class="theme-toggle" id="theme-toggle" type="button" title="Тема оформления">🌙</button>
-                <div class="theme-menu" id="theme-menu"></div>
-            </div>
-            <button class="theme-toggle sound-toggle" type="button" title="Звук включён">🔊</button>
-            <button class="btn btn-sm btn-ghost" id="btn-exit">В лобби</button>
-        </div>
-    </div>
+			/* === Оверлей финиша === */
+			.finish-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(5, 5, 10, 0.75);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			display: grid;
+			place-items: center;
+			z-index: 100;
+			padding: 1rem;
+			animation: fadeIn 0.35s ease both;
+			}
+			.finish-overlay.hidden { display: none; }
 
-    <div class="clue-panel hidden" id="clue-panel">
-        <div class="clue-display" id="clue-display">Подсказок нет</div>
-        <div class="clue-controls">
-            <div class="clue-inputs" id="clue-inputs">
-                <input type="text" id="clue-word" placeholder="Слово" maxlength="30" />
-                <input type="number" id="clue-number" min="1" max="9" value="1" />
-                <button id="btn-clue">Дать подсказку</button>
-            </div>
-            <button id="btn-end-turn" style="display: none;">
-                <span>Закончить ход</span>
-                <span class="end-turn-voters" id="end-turn-voters"></span>
-                <div class="end-turn-progress" id="end-turn-progress" hidden>
-                    <div class="fill"></div>
-                </div>
-            </button>
-        </div>
-    </div>
+			.finish-card {
+			background: var(--glass);
+			border: 1px solid var(--border-strong);
+			border-radius: var(--radius);
+			padding: 2.5rem;
+			text-align: center;
+			box-shadow: var(--shadow-hover);
+			max-width: 480px;
+			width: 100%;
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			}
+			.finish-card h1 {
+			font-weight: 300;
+			margin: 0 0 1rem;
+			letter-spacing: 0.05em;
+			font-size: 28px;
+			}
+			.finish-card p {
+			color: var(--text-dim);
+			margin: 0 0 1.5rem;
+			font-size: 14px;
+			}
+			.finish-buttons {
+			display: flex;
+			gap: 0.5rem;
+			justify-content: center;
+			flex-wrap: wrap;
+			}
+			.finish-buttons > * { flex: 1; min-width: 140px; }
 
-    <div class="board" id="board"></div>
+			.status-line {
+			margin-top: 1rem;
+			font-size: 13px;
+			color: var(--text-mute);
+			min-height: 1.2rem;
+			text-align: center;
+			transition: color 0.2s ease;
+			}
+			.error-line {
+			margin-top: 0.5rem;
+			font-size: 13px;
+			color: var(--err);
+			min-height: 1.2rem;
+			text-align: center;
+			}
 
-    <div class="status-line" id="status">Подключение…</div>
-    <div class="error-line" id="error"></div>
+			@media (max-width: 640px) {
+			.board { gap: 0.4rem; }
+			.clue-inputs input[type="text"] { width: 130px; }
+			.topbar { font-size: 12px; }
+			.room-code { letter-spacing: 0.15em; }
+			.finish-card { padding: 1.8rem; }
+			.finish-card h1 { font-size: 22px; }
+			.voter-dot { width: 10px; height: 10px; }
+			}
 
-</main>
+			@media (prefers-reduced-motion: reduce) {
+			.card.spymaster.assassin { animation: none; }
+			.turn-timer.overtime { animation: none; }
+			.turn-timer.urgent { animation: none; }
+			.card.voting { animation: none; }
+			#btn-end-turn.voting { animation: none; }
+			}
+		</style>
+	</head>
+	<body>
 
-<div class="finish-overlay hidden" id="finish">
-    <div class="finish-card">
-        <h1 id="finish-title">Партия завершена</h1>
-        <p id="finish-sub">—</p>
-        <div class="finish-buttons">
-            <button class="btn btn-success" id="btn-go-lobby">В лобби</button>
-            <button class="btn" id="btn-leave-room">Покинуть комнату</button>
-        </div>
-    </div>
-</div>
+		<div class="bg-orbs" aria-hidden="true">
+			<div class="orb orb-1"></div>
+			<div class="orb orb-2"></div>
+			<div class="orb orb-3"></div>
+		</div>
+		<div class="bg-grid" aria-hidden="true"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-<script>
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('roomId');
-    const playerId = params.get('playerId');
+		<main class="shell game-shell">
 
-    if (!roomId || !playerId) {
-        window.location.href = '/lobby.html';
-    }
+			<div class="topbar">
+				<div class="left">
+					<span class="room-code" id="room-code">----</span>
+					<span class="turn-indicator none" id="turn">—</span>
+					<div class="turn-timer" id="turn-timer" hidden="">
+						<span id="timer-value">--:--</span>
+						<span class="timer-bonus" id="timer-bonus">+15</span>
+					</div>
+				</div>
+				<div class="right">
+					<span class="score">
+						<span class="Blue" id="score-blue">0/9</span>
+						<span class="Red" id="score-red">0/8</span>
+					</span>
+					<span class="role-badge" id="my-role">—</span>
+					<div class="theme-picker">
+						<button class="theme-toggle" id="theme-toggle" type="button" title="Тема оформления">🌙</button>
+						<div class="theme-menu" id="theme-menu"></div>
+					</div>
+					<button class="theme-toggle sound-toggle" type="button" title="Звук включён">🔊</button>
+					<button class="btn btn-sm btn-ghost" id="btn-exit">В лобби</button>
+				</div>
+			</div>
 
-    const $ = id => document.getElementById(id);
-    const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
+			<div class="clue-panel hidden" id="clue-panel">
+				<div class="clue-display" id="clue-display">Подсказок нет</div>
+				<div class="clue-controls">
+					<div class="clue-inputs" id="clue-inputs">
+						<input type="text" id="clue-word" placeholder="Слово" maxlength="30" />
+						<input type="number" id="clue-number" min="1" max="9" value="1" />
+						<button id="btn-clue">Дать подсказку</button>
+					</div>
+					<button id="btn-end-turn" style="display: none;">
+						<span>Закончить ход</span>
+						<span class="end-turn-voters" id="end-turn-voters"></span>
+						<div class="end-turn-progress" id="end-turn-progress" hidden="">
+							<div class="fill"></div>
+						</div>
+					</button>
+				</div>
+			</div>
 
-    const state = {
-        connection: null,
-        myRole: null,
-        myTeam: null,
-        isHost: false,
-        isSpectator: false,
-        currentTurnTeam: null,
-        currentClue: null,
-        guessesMade: 0,
-        guessesAllowed: 0,
-        cards: [],
-        teams: [],
-        gameState: null,
-        lastStateHash: null,
-        activeVote: null,
-    };
+			<div class="board" id="board"></div>
 
-    // === Детектор переходов для звуков ===
-    // Объявлено наверху — иначе временная мёртвая зона при первом вызове из render()
-    let prevGameState = null;
-    let prevTurnTeam = null;
-    let prevHadActiveVoteTimer = false;
-    let prevVoteCardId = null;
-    let prevHasClue = false;
-    let prevClueTeam = null;
+			<div class="teams-info">
+				<div class="team-panel Blue">
+					<h3>Синие</h3>
+					<div class="team-players" id="team-players-blue"></div>
+					<div class="team-clues-title">Подсказки</div>
+					<div class="team-clues" id="team-clues-blue"></div>
+				</div>
+				<div class="team-panel Red">
+					<h3>Красные</h3>
+					<div class="team-players" id="team-players-red"></div>
+					<div class="team-clues-title">Подсказки</div>
+					<div class="team-clues" id="team-clues-red"></div>
+				</div>
+			</div>
 
-    // === Таймер хода ===
-    const timerState = {
-        serverOffsetMs: 0,
-        turnDeadlineMs: null,
-        spymasterDeadlineMs: null,
-    };
+			<div class="status-line" id="status">Подключение…</div>
+			<div class="error-line" id="error"></div>
 
-    function parseUtcMs(str) {
-        if (!str) return null;
-        if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) str += 'Z';
-        const ms = new Date(str).getTime();
-        return isNaN(ms) ? null : ms;
-    }
+		</main>
 
-    function updateTimerState(data) {
-        const serverNow = parseUtcMs(data.serverNowUtc);
-        const clientNow = Date.now();
-        timerState.serverOffsetMs = (serverNow !== null) ? serverNow - clientNow : 0;
+		<div class="finish-overlay hidden" id="finish">
+			<div class="finish-card">
+				<h1 id="finish-title">Партия завершена</h1>
+				<p id="finish-sub">—</p>
+				<div class="finish-buttons">
+					<button class="btn btn-success" id="btn-go-lobby">В лобби</button>
+					<button class="btn" id="btn-leave-room">Покинуть комнату</button>
+				</div>
+			</div>
+		</div>
 
-        timerState.turnDeadlineMs = parseUtcMs(data.turnDeadlineUtc);
-        timerState.spymasterDeadlineMs = parseUtcMs(data.spymasterDeadlineUtc);
-    }
+		<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+		<script>
+			const params = new URLSearchParams(window.location.search);
+			const roomId = params.get('roomId');
+			const playerId = params.get('playerId');
 
-    function tickTimer() {
-        const el = $('turn-timer');
-        const valueEl = $('timer-value');
+			if (!roomId || !playerId) {
+			window.location.href = '/lobby.html';
+			}
 
-        if (state.gameState !== 'InGame') {
-            el.hidden = true;
-            return;
-        }
+			const $ = id => document.getElementById(id);
+			const lobbyUrl = `/lobby.html?roomId=${roomId}&playerId=${playerId}&stay=1`;
 
-        const now = Date.now() + timerState.serverOffsetMs;
-        const isSpymaster = state.myRole === 'Spymaster';
-        const hasClue = !!state.currentClue;
+			const state = {
+			connection: null,
+			myRole: null,
+			myTeam: null,
+			isHost: false,
+			isSpectator: false,
+			currentTurnTeam: null,
+			currentClue: null,
+			guessesMade: 0,
+			guessesAllowed: 0,
+			cards: [],
+			teams: [],
+			players: [],
+			clueHistory: [],
+			gameState: null,
+			lastStateHash: null,
+			activeVote: null,
+			};
 
-        const usePersonalSpymasterWindow =
-            isSpymaster
-            && !hasClue
-            && timerState.spymasterDeadlineMs
-            && now < timerState.spymasterDeadlineMs;
+			// === Детектор переходов для звуков ===
+			let prevGameState = null;
+			let prevTurnTeam = null;
+			let prevHadActiveVoteTimer = false;
+			let prevVoteCardId = null;
+			let prevHasClue = false;
+			let prevClueTeam = null;
+
+			// === Таймер хода ===
+			const timerState = {
+			serverOffsetMs: 0,
+			turnDeadlineMs: null,
+			spymasterDeadlineMs: null,
+			};
+
+			function parseUtcMs(str) {
+			if (!str) return null;
+			if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) str += 'Z';
+			const ms = new Date(str).getTime();
+			return isNaN(ms) ? null : ms;
+			}
+
+			function updateTimerState(data) {
+			const serverNow = parseUtcMs(data.serverNowUtc);
+			const clientNow = Date.now();
+			timerState.serverOffsetMs = (serverNow !== null) ? serverNow - clientNow : 0;
+
+			timerState.turnDeadlineMs = parseUtcMs(data.turnDeadlineUtc);
+			timerState.spymasterDeadlineMs = parseUtcMs(data.spymasterDeadlineUtc);
+			}
+
+			function tickTimer() {
+			const el = $('turn-timer');
+			const valueEl = $('timer-value');
+
+			if (state.gameState !== 'InGame') {
+			el.hidden = true;
+			return;
+			}
+
+			const now = Date.now() + timerState.serverOffsetMs;
+			const isSpymaster = state.myRole === 'Spymaster';
+			const hasClue = !!state.currentClue;
+
+			const usePersonalSpymasterWindow =
+			isSpymaster
+			&& !hasClue
+			&& timerState.spymasterDeadlineMs
+			&& now < timerState.spymasterDeadlineMs;
 
         const targetDeadline = usePersonalSpymasterWindow
             ? timerState.spymasterDeadlineMs
@@ -788,66 +952,65 @@
 
         const overtime = isSpymaster
             && !hasClue
-            && timerState.spymasterDeadlineMs
-            && now >= timerState.spymasterDeadlineMs;
-        el.classList.toggle('overtime', !!overtime);
+			&& timerState.spymasterDeadlineMs
+			&& now >= timerState.spymasterDeadlineMs;
+			el.classList.toggle('overtime', !!overtime);
 
-        if (overtime && !tickTimer._prevOvertime) {
-            window.Sounds?.play('overtime');
-        }
-        tickTimer._prevOvertime = overtime;
+			if (overtime && !tickTimer._prevOvertime) {
+			window.Sounds?.play('overtime');
+			}
+			tickTimer._prevOvertime = overtime;
 
-        el.classList.toggle('urgent', remaining <= 10 && remaining > 0 && !overtime);
+			el.classList.toggle('urgent', remaining <= 10 && remaining > 0 && !overtime);
 
-        if (remaining <= 0) {
-            if (!tickTimer._stuckSince) tickTimer._stuckSince = Date.now();
-            else if (Date.now() - tickTimer._stuckSince > 3000) {
-                tickTimer._stuckSince = 0;
-                fetchAndRenderState(true);
-            }
-        } else {
-            tickTimer._stuckSince = 0;
-        }
-    }
+			if (remaining <= 0) {
+			if (!tickTimer._stuckSince) tickTimer._stuckSince = Date.now();
+			else if (Date.now() - tickTimer._stuckSince > 3000) {
+			tickTimer._stuckSince = 0;
+			fetchAndRenderState(true);
+			}
+			} else {
+			tickTimer._stuckSince = 0;
+			}
+			}
 
-    function flashBonus(seconds) {
-        const b = $('timer-bonus');
-        b.textContent = `+${seconds}`;
-        b.classList.remove('show');
-        void b.offsetWidth;
-        b.classList.add('show');
-    }
+			function flashBonus(seconds) {
+			const b = $('timer-bonus');
+			b.textContent = `+${seconds}`;
+			b.classList.remove('show');
+			void b.offsetWidth;
+			b.classList.add('show');
+			}
 
-    function tickVoteProgress() {
-        const av = state.activeVote;
+			function tickVoteProgress() {
+			const av = state.activeVote;
 
-        const cardFill = document.querySelector('.card-vote-progress > .fill');
-        const btnFill = document.querySelector('.end-turn-progress > .fill');
+			const cardFill = document.querySelector('.card-vote-progress > .fill');
+			const btnFill = document.querySelector('.end-turn-progress > .fill');
 
-        const update = (fill, isActive) => {
-            if (!fill) return;
-            if (!isActive || !av || !av.deadlineUtc) {
-                fill.style.width = '0%';
-                return;
-            }
-            const now = Date.now() + timerState.serverOffsetMs;
-            const deadline = parseUtcMs(av.deadlineUtc);
-            if (!deadline) return;
-            const totalMs = 5000;
-            const remaining = Math.max(0, deadline - now);
-            const progress = Math.max(0, Math.min(1, 1 - remaining / totalMs));
-            fill.style.width = (progress * 100).toFixed(1) + '%';
-        };
+			const update = (fill, isActive) => {
+			if (!fill) return;
+			if (!isActive || !av || !av.deadlineUtc) {
+			fill.style.width = '0%';
+			return;
+			}
+			const now = Date.now() + timerState.serverOffsetMs;
+			const deadline = parseUtcMs(av.deadlineUtc);
+			if (!deadline) return;
+			const totalMs = 5000;
+			const remaining = Math.max(0, deadline - now);
+			const progress = Math.max(0, Math.min(1, 1 - remaining / totalMs));
+			fill.style.width = (progress * 100).toFixed(1) + '%';
+			};
 
-        update(cardFill, av && av.kind === 'Card');
-        update(btnFill, av && av.kind === 'EndTurn');
+			update(cardFill, av && av.kind === 'Card');
+			update(btnFill, av && av.kind === 'EndTurn');
 			}
 
 			setInterval(tickTimer, 200);
 			setInterval(tickVoteProgress, 100);
 
 			// === Определение победителя ===
-			// Возвращает 'Blue' | 'Red' | null.
 			function computeWinner(data) {
 			const blue = data.teams.find(t => t.color === 'Blue');
 			const red = data.teams.find(t => t.color === 'Red');
@@ -870,45 +1033,44 @@
 			const Sounds = window.Sounds;
 
 			if (prevGameState !== 'InGame' && data.state === 'InGame') {
-            Sounds?.play('game-start');
-        }
+			Sounds?.play('game-start');
+			}
 
-        if (prevTurnTeam && data.currentTurnTeam && prevTurnTeam !== data.currentTurnTeam) {
-            Sounds?.play('turn-change');
-        }
+			if (prevTurnTeam && data.currentTurnTeam && prevTurnTeam !== data.currentTurnTeam) {
+			Sounds?.play('turn-change');
+			}
 
-        const hasClueNow = !!(data.currentClue && data.currentClue.word);
-        if (!prevHasClue && hasClueNow) {
-            Sounds?.play('clue');
-        }
+			const hasClueNow = !!(data.currentClue && data.currentClue.word);
+			if (!prevHasClue && hasClueNow) {
+			Sounds?.play('clue');
+			}
 
-        const hasActiveVoteTimer = !!(data.activeVote && data.activeVote.deadlineUtc);
-        const voteCardId = data.activeVote?.cardId || null;
+			const hasActiveVoteTimer = !!(data.activeVote && data.activeVote.deadlineUtc);
+			const voteCardId = data.activeVote?.cardId || null;
 
-        if (!prevHadActiveVoteTimer && hasActiveVoteTimer) {
-            Sounds?.play('vote-start');
-        }
+			if (!prevHadActiveVoteTimer && hasActiveVoteTimer) {
+			Sounds?.play('vote-start');
+			}
 
-        if (prevHadActiveVoteTimer && !hasActiveVoteTimer) {
-            const turnChanged = prevTurnTeam && data.currentTurnTeam
-                && prevTurnTeam !== data.currentTurnTeam;
+			if (prevHadActiveVoteTimer && !hasActiveVoteTimer) {
+			const turnChanged = prevTurnTeam && data.currentTurnTeam
+			&& prevTurnTeam !== data.currentTurnTeam;
 
-            let cardRevealed = false;
-            if (prevVoteCardId) {
-                const c = (data.cards || []).find(x => x.id === prevVoteCardId);
-                cardRevealed = !!(c && c.isRevealed);
-            }
+			let cardRevealed = false;
+			if (prevVoteCardId) {
+			const c = (data.cards || []).find(x => x.id === prevVoteCardId);
+			cardRevealed = !!(c && c.isRevealed);
+			}
 
-            if (!turnChanged && !cardRevealed) {
-                Sounds?.play('vote-cancel');
-            }
-        }
+			if (!turnChanged && !cardRevealed) {
+			Sounds?.play('vote-cancel');
+			}
+			}
 
-        if (prevGameState !== 'Finished' && data.state === 'Finished') {
-            const winner = computeWinner(data);
-
-            const iWon = winner && data.yourTeam === winner;
-            const iLost = winner && data.yourTeam && data.yourTeam !== winner;
+			if (prevGameState !== 'Finished' && data.state === 'Finished') {
+			const winner = computeWinner(data);
+			const iWon = winner && data.yourTeam === winner;
+			const iLost = winner && data.yourTeam && data.yourTeam !== winner;
 
 			if (iWon) Sounds?.play('victory');
 			else if (iLost) Sounds?.play('defeat');
@@ -938,6 +1100,12 @@
 			+ (data.activeVote.deadlineUtc || '') + ':'
 			+ (data.activeVote.voters || []).map(v => v.playerId).join(',')
 			: '',
+			p: (data.players || []).map(p =>
+			p.id + ':' + (p.isConnected ? 1 : 0)
+			+ ':' + (p.role === 'Spymaster' ? 'S' : 'O')
+			+ ':' + (p.teamColor || '-')
+			).join('|'),
+			ch: (data.clueHistory || []).length,
 			});
 			}
 
@@ -954,6 +1122,8 @@
 			state.guessesAllowed = data.guessesAllowed;
 			state.cards = data.cards;
 			state.teams = data.teams;
+			state.players = data.players || [];
+			state.clueHistory = data.clueHistory || [];
 			state.gameState = data.state;
 			state.activeVote = data.activeVote || null;
 
@@ -990,6 +1160,7 @@
 			renderScore();
 			renderCluePanel();
 			renderBoard();
+			renderTeamsInfo();
 			renderFinish();
 
 			updateTimerState(data);
@@ -1009,159 +1180,277 @@
 			const isSpymaster = state.myRole === 'Spymaster';
 			const isSpectator = state.isSpectator;
 			const isMyTurn = state.myTeam && state.currentTurnTeam
-            && state.myTeam === state.currentTurnTeam;
-        const canGiveClue = isSpymaster && isMyTurn && !state.currentClue;
-        const canEndTurn = !isSpymaster && !isSpectator && isMyTurn && !!state.currentClue;
+			&& state.myTeam === state.currentTurnTeam;
+			const canGiveClue = isSpymaster && isMyTurn && !state.currentClue;
+			const canEndTurn = !isSpymaster && !isSpectator && isMyTurn && !!state.currentClue;
 
-        if (isSpectator) {
-            $('clue-panel').classList.add('hidden');
-            return;
-        }
+			if (isSpectator) {
+			$('clue-panel').classList.add('hidden');
+			return;
+			}
 
-        $('clue-panel').classList.remove('hidden');
-        $('clue-inputs').style.display = canGiveClue ? 'flex' : 'none';
-        $('btn-end-turn').style.display = canEndTurn ? 'inline-flex' : 'none';
+			$('clue-panel').classList.remove('hidden');
+			$('clue-inputs').style.display = canGiveClue ? 'flex' : 'none';
+			$('btn-end-turn').style.display = canEndTurn ? 'inline-flex' : 'none';
 
-        const display = $('clue-display');
-        if (state.currentClue) {
-            const teamClass = state.currentClue.team === 'Blue' ? 'team-blue' : 'team-red';
-            display.innerHTML =
-                `<span class="${teamClass}">${escapeHtml(state.currentClue.word)}</span>` +
-                `<span class="num">${state.currentClue.number}</span>`;
-        } else if (isMyTurn && isSpymaster) {
-            display.textContent = 'Твой ход — дай подсказку';
-        } else if (isMyTurn) {
-            display.textContent = 'Ждём подсказку от спаймастера';
-        } else {
-            display.textContent = 'Ход другой команды';
-        }
+			const display = $('clue-display');
+			if (state.currentClue) {
+			const teamClass = state.currentClue.team === 'Blue' ? 'team-blue' : 'team-red';
+			display.innerHTML =
+			`<span class="${teamClass}">${escapeHtml(state.currentClue.word)}</span>` +
+			`<span class="num">${state.currentClue.number}</span>`;
+			} else if (isMyTurn && isSpymaster) {
+			display.textContent = 'Твой ход — дай подсказку';
+			} else if (isMyTurn) {
+			display.textContent = 'Ждём подсказку от спаймастера';
+			} else {
+			display.textContent = 'Ход другой команды';
+			}
 
-        const av = state.activeVote;
-        const isEndTurnVote = av && av.kind === 'EndTurn';
+			const av = state.activeVote;
+			const isEndTurnVote = av && av.kind === 'EndTurn';
 
-        const dotsContainer = $('end-turn-voters');
-        dotsContainer.innerHTML = '';
+			const dotsContainer = $('end-turn-voters');
+			dotsContainer.innerHTML = '';
 
-        if (isEndTurnVote && av.voters && av.voters.length > 0) {
-            for (const v of av.voters) {
-                const dot = document.createElement('div');
-                dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
-                dot.style.background = v.color;
-                dot.style.color = v.color;
-                dotsContainer.appendChild(dot);
-            }
-        }
+			if (isEndTurnVote && av.voters && av.voters.length > 0) {
+			for (const v of av.voters) {
+			const dot = document.createElement('div');
+			dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
+			dot.style.background = v.color;
+			dot.style.color = v.color;
+			dotsContainer.appendChild(dot);
+			}
+			}
 
-        const btn = $('btn-end-turn');
-        btn.classList.toggle('voting', !!isEndTurnVote);
+			const btn = $('btn-end-turn');
+			btn.classList.toggle('voting', !!isEndTurnVote);
 
-        const progressEl = $('end-turn-progress');
-        progressEl.hidden = !(isEndTurnVote && av.deadlineUtc);
-    }
+			const progressEl = $('end-turn-progress');
+			progressEl.hidden = !(isEndTurnVote && av.deadlineUtc);
+			}
 
-    function renderBoard() {
-        const board = $('board');
-        board.innerHTML = '';
+			function renderBoard() {
+			const board = $('board');
+			board.innerHTML = '';
 
-        const sorted = [...state.cards].sort((a, b) => a.position - b.position);
-        const isSpymaster = state.myRole === 'Spymaster';
-        const isMyTurn = state.myTeam && state.currentTurnTeam
-            && state.myTeam === state.currentTurnTeam;
-        const hasClue = !!state.currentClue;
+			const sorted = [...state.cards].sort((a, b) => a.position - b.position);
+			const isSpymaster = state.myRole === 'Spymaster';
+			const isMyTurn = state.myTeam && state.currentTurnTeam
+			&& state.myTeam === state.currentTurnTeam;
+			const hasClue = !!state.currentClue;
 
-        const av = state.activeVote;
-        const activeCardVoteId = (av && av.kind === 'Card') ? av.cardId : null;
-        const activeCardHasDeadline = activeCardVoteId && av.deadlineUtc ? true : false;
+			const av = state.activeVote;
+			const activeCardVoteId = (av && av.kind === 'Card') ? av.cardId : null;
+			const activeCardHasDeadline = activeCardVoteId && av.deadlineUtc ? true : false;
 
-        for (const card of sorted) {
-            const el = document.createElement('div');
-            el.className = 'card';
+			for (const card of sorted) {
+			const el = document.createElement('div');
+			el.className = 'card';
 
-            if (isSpymaster && !card.isRevealed) el.classList.add('spymaster');
+			if (isSpymaster && !card.isRevealed) el.classList.add('spymaster');
 
-            const color = card.color ?? null;
-            if (color && !card.isRevealed) el.classList.add(color.toLowerCase());
+			const color = card.color ?? null;
+			if (color && !card.isRevealed) el.classList.add(color.toLowerCase());
 
-            if (card.isRevealed) {
-                el.classList.add('revealed');
-                if (color) el.classList.add(color.toLowerCase());
-            }
+			if (card.isRevealed) {
+			el.classList.add('revealed');
+			if (color) el.classList.add(color.toLowerCase());
+			}
 
-            const img = document.createElement('img');
-            img.src = card.imageUrl;
-            img.alt = card.altText || '';
-            img.draggable = false;
-            el.appendChild(img);
+			const img = document.createElement('img');
+			img.src = card.imageUrl;
+			img.alt = card.altText || '';
+			img.draggable = false;
+			el.appendChild(img);
 
-            if (isSpymaster && !card.isRevealed && color) {
-                const tint = document.createElement('div');
-                tint.className = 'tint';
-                el.appendChild(tint);
-            }
+			if (isSpymaster && !card.isRevealed && color) {
+			const tint = document.createElement('div');
+			tint.className = 'tint';
+			el.appendChild(tint);
+			}
 
-            if (card.isRevealed && color) {
-                const badge = document.createElement('div');
-                badge.className = 'badge';
-                badge.textContent = color[0];
-                el.appendChild(badge);
-            }
+			if (card.isRevealed && color) {
+			const badge = document.createElement('div');
+			badge.className = 'badge';
+			badge.textContent = color[0];
+			el.appendChild(badge);
+			}
 
-            const voters = card.voters || [];
-            const votersCount = card.votersCount || 0;
+			const voters = card.voters || [];
+			const votersCount = card.votersCount || 0;
 
-            if (!card.isRevealed && votersCount > 0 && card.id === activeCardVoteId) {
-                if (voters.length > 0) {
-                    const wrap = document.createElement('div');
-                    wrap.className = 'card-voters';
-                    for (const v of voters) {
-                        const dot = document.createElement('div');
-                        dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
-                        dot.style.background = v.color;
-                        dot.style.color = v.color;
-                        wrap.appendChild(dot);
-                    }
-                    el.appendChild(wrap);
-                } else {
-                    const cnt = document.createElement('div');
-                    cnt.className = 'vote-count-badge';
-                    cnt.textContent = `👁 ${votersCount}`;
-                    el.appendChild(cnt);
-                }
-            }
+			if (!card.isRevealed && votersCount > 0 && card.id === activeCardVoteId) {
+			if (voters.length > 0) {
+			const wrap = document.createElement('div');
+			wrap.className = 'card-voters';
+			for (const v of voters) {
+			const dot = document.createElement('div');
+			dot.className = 'voter-dot' + (v.isMe ? ' me' : '');
+			dot.style.background = v.color;
+			dot.style.color = v.color;
+			wrap.appendChild(dot);
+			}
+			el.appendChild(wrap);
+			} else {
+			const cnt = document.createElement('div');
+			cnt.className = 'vote-count-badge';
+			cnt.textContent = `👁 ${votersCount}`;
+			el.appendChild(cnt);
+			}
+			}
 
-            if (activeCardHasDeadline && activeCardVoteId === card.id) {
-                el.classList.add('voting');
-                const bar = document.createElement('div');
-                bar.className = 'card-vote-progress';
-                const fill = document.createElement('div');
-                fill.className = 'fill';
-                bar.appendChild(fill);
-                el.appendChild(bar);
-            }
+			if (activeCardHasDeadline && activeCardVoteId === card.id) {
+			el.classList.add('voting');
+			const bar = document.createElement('div');
+			bar.className = 'card-vote-progress';
+			const fill = document.createElement('div');
+			fill.className = 'fill';
+			bar.appendChild(fill);
+			el.appendChild(bar);
+			}
 
-            const canVote = !card.isRevealed && !isSpymaster && !state.isSpectator
-                && isMyTurn && hasClue;
+			const canVote = !card.isRevealed && !isSpymaster && !state.isSpectator
+			&& isMyTurn && hasClue;
 
-            if (canVote) {
-                el.classList.add('revealable');
-                el.onclick = () => toggleVote(card.id);
-            }
+			if (canVote) {
+			el.classList.add('revealable');
+			el.onclick = () => toggleVote(card.id);
+			}
 
-            el.title = card.altText || '';
-            board.appendChild(el);
-        }
+			el.title = card.altText || '';
+			board.appendChild(el);
+			}
 
-        tickVoteProgress();
-    }
+			tickVoteProgress();
+			}
 
-    function renderFinish() {
-        if (state.gameState !== 'Finished') {
-            $('finish').classList.add('hidden');
-            return;
-        }
+			// === Панели команд: игроки + история подсказок ===
 
-        const winner = computeWinner(state);
-        const assassinOpen = state.cards.some(c => c.isRevealed && c.color === 'Assassin');
+			function renderTeamsInfo() {
+			renderTeamPanel('Blue');
+			renderTeamPanel('Red');
+			}
+
+			function renderTeamPanel(color) {
+			const panel = document.querySelector('.team-panel.' + color);
+			if (!panel) return;
+
+			const colorLower = color.toLowerCase();
+
+			// Список игроков команды. Спаймастер — первым.
+			const players = (state.players || []).filter(p => p.teamColor === color);
+			const ordered = players.slice().sort((a, b) => {
+			if (a.role === 'Spymaster' && b.role !== 'Spymaster') return -1;
+			if (b.role === 'Spymaster' && a.role !== 'Spymaster') return 1;
+			return 0;
+			});
+
+			const playersEl = document.getElementById('team-players-' + colorLower);
+			playersEl.innerHTML = '';
+
+			if (ordered.length === 0) {
+			const empty = document.createElement('div');
+			empty.className = 'empty-clues';
+			empty.textContent = 'Пусто';
+			playersEl.appendChild(empty);
+			} else {
+			for (const p of ordered) {
+			playersEl.appendChild(makePlayerRow(p));
+			}
+			}
+
+			// История подсказок этой команды
+			const clues = (state.clueHistory || []).filter(c => c.team === color);
+			const cluesEl = document.getElementById('team-clues-' + colorLower);
+			cluesEl.innerHTML = '';
+
+			if (clues.length === 0) {
+			const empty = document.createElement('div');
+			empty.className = 'empty-clues';
+			empty.textContent = 'Подсказок пока нет';
+			cluesEl.appendChild(empty);
+			} else {
+			for (const c of clues) {
+			const row = document.createElement('div');
+			row.className = 'clue-row';
+
+			const word = document.createElement('span');
+			word.className = 'c-word';
+			word.textContent = c.word;
+
+			const num = document.createElement('span');
+			num.className = 'c-num';
+			num.textContent = c.number;
+
+			const author = document.createElement('span');
+			author.className = 'c-author';
+			author.textContent = c.spymasterNickname || '';
+			author.title = c.spymasterNickname || '';
+
+			row.appendChild(word);
+			row.appendChild(num);
+			row.appendChild(author);
+			cluesEl.appendChild(row);
+			}
+			// Прокручиваем к последней (свежей) подсказке
+			cluesEl.scrollTop = cluesEl.scrollHeight;
+			}
+			}
+
+			function makePlayerRow(p) {
+			const row = document.createElement('div');
+			row.className = 'player-row';
+			if (p.role === 'Spymaster') row.classList.add('spymaster');
+			if (!p.isConnected) row.classList.add('offline');
+
+			if (p.voteColor) {
+			const dot = document.createElement('div');
+			dot.className = 'p-dot';
+			dot.style.background = p.voteColor;
+			dot.style.color = p.voteColor;
+			row.appendChild(dot);
+			}
+
+			const nick = document.createElement('span');
+			nick.className = 'p-nick';
+			nick.textContent = p.nickname;
+			row.appendChild(nick);
+
+			if (p.isHost) {
+			const crown = document.createElement('span');
+			crown.className = 'p-crown';
+			crown.textContent = '👑';
+			crown.title = 'Хост';
+			row.appendChild(crown);
+			}
+
+			if (p.role === 'Spymaster') {
+			const role = document.createElement('span');
+			role.className = 'p-role';
+			role.textContent = 'спайм';
+			row.appendChild(role);
+			}
+
+			if (!p.isConnected) {
+			const off = document.createElement('span');
+			off.className = 'p-role';
+			off.style.color = 'var(--err)';
+			off.textContent = 'offline';
+			row.appendChild(off);
+			}
+
+			return row;
+			}
+
+			function renderFinish() {
+			if (state.gameState !== 'Finished') {
+			$('finish').classList.add('hidden');
+			return;
+			}
+
+			const winner = computeWinner(state);
+			const assassinOpen = state.cards.some(c => c.isRevealed && c.color === 'Assassin');
 
 			let title, sub;
 			if (assassinOpen) {
@@ -1243,137 +1532,137 @@
 
             const h = hashState(data);
             if (!force && h === state.lastStateHash) return;
-            state.lastStateHash = h;
+			state.lastStateHash = h;
 
-            render(data);
-        } catch (e) {
-            console.error('[fetch state]', e);
-        } finally {
-            fetching = false;
-        }
-    }
+			render(data);
+			} catch (e) {
+			console.error('[fetch state]', e);
+			} finally {
+			fetching = false;
+			}
+			}
 
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-				}[c]));
-				}
+			function escapeHtml(s) {
+			return String(s).replace(/[&<>"']/g, c => ({
+			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
+			}
 
-				async function start() {
-				const conn = new signalR.HubConnectionBuilder()
-				.withUrl('/gamehub')
-				.withAutomaticReconnect()
-				.build();
+			async function start() {
+			const conn = new signalR.HubConnectionBuilder()
+			.withUrl('/gamehub')
+			.withAutomaticReconnect()
+			.build();
 
-				conn.on('GameStateUpdated', data => {
-				state.lastStateHash = hashState(data);
-				render(data);
-				});
+			conn.on('GameStateUpdated', data => {
+			state.lastStateHash = hashState(data);
+			render(data);
+			});
 
-				conn.on('StateChanged', () => fetchAndRenderState());
+			conn.on('StateChanged', () => fetchAndRenderState());
 
-				conn.on('RevealOutcome', ({ outcome }) => {
-				const labels = {
-				Correct: '✓ Верно!',
-				WrongTeam: '✗ Чужая карта — очко сопернику, ход переходит',
-				Neutral: '· Нейтральная — ход переходит',
-				Assassin: '☠ Ассасин. Игра окончена.'
-				};
-				$('status').textContent = labels[outcome] || '';
-				setTimeout(() => $('status').textContent = '', 3000);
+			conn.on('RevealOutcome', ({ outcome }) => {
+			const labels = {
+			Correct: '✓ Верно!',
+			WrongTeam: '✗ Чужая карта — очко сопернику, ход переходит',
+			Neutral: '· Нейтральная — ход переходит',
+			Assassin: '☠ Ассасин. Игра окончена.'
+			};
+			$('status').textContent = labels[outcome] || '';
+			setTimeout(() => $('status').textContent = '', 3000);
 
-				const soundMap = {
-				Correct: 'correct',
-				WrongTeam: 'wrong',
-				Neutral: 'neutral',
-				Assassin: 'assassin'
-				};
-				const cat = soundMap[outcome];
-				if (cat) window.Sounds?.play(cat);
-				});
+			const soundMap = {
+			Correct: 'correct',
+			WrongTeam: 'wrong',
+			Neutral: 'neutral',
+			Assassin: 'assassin'
+			};
+			const cat = soundMap[outcome];
+			if (cat) window.Sounds?.play(cat);
+			});
 
-				conn.on('TurnBonus', ({ seconds }) => {
-				flashBonus(seconds);
-				window.Sounds?.play('bonus');
-				});
+			conn.on('TurnBonus', ({ seconds }) => {
+			flashBonus(seconds);
+			window.Sounds?.play('bonus');
+			});
 
-				conn.on('LobbyUpdated', lobby => {
-				if (lobby.state === 'Lobby') {
-				window.location.href = lobbyUrl;
-				}
-				});
+			conn.on('LobbyUpdated', lobby => {
+			if (lobby.state === 'Lobby') {
+			window.location.href = lobbyUrl;
+			}
+			});
 
-				conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
-				conn.onreconnected(async () => {
-				$('status').textContent = 'Подключено';
-				try {
-				await conn.invoke('JoinGame', roomId, playerId);
-				} catch (e) {
-				console.error('[reconnect JoinGame failed]', e);
-				window.location.href = lobbyUrl;
-				}
-				});
-				conn.onclose(() => $('status').textContent = 'Соединение закрыто');
+			conn.onreconnecting(() => $('status').textContent = 'Переподключение…');
+			conn.onreconnected(async () => {
+			$('status').textContent = 'Подключено';
+			try {
+			await conn.invoke('JoinGame', roomId, playerId);
+			} catch (e) {
+			console.error('[reconnect JoinGame failed]', e);
+			window.location.href = lobbyUrl;
+			}
+			});
+			conn.onclose(() => $('status').textContent = 'Соединение закрыто');
 
-				await conn.start();
-				await conn.invoke('JoinGame', roomId, playerId);
-				state.connection = conn;
-				$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
+			await conn.start();
+			await conn.invoke('JoinGame', roomId, playerId);
+			state.connection = conn;
+			$('status').textContent = 'Подключено · ' + conn.connectionId.slice(0, 8);
 
-				window.Sounds?.preload?.([
-				'vote', 'correct', 'wrong', 'neutral',
-				'vote-start', 'bonus', 'turn-change', 'clue'
-				]);
+			window.Sounds?.preload?.([
+			'vote', 'correct', 'wrong', 'neutral',
+			'vote-start', 'bonus', 'turn-change', 'clue'
+			]);
 
-				setInterval(() => fetchAndRenderState(), 3000);
-				}
+			setInterval(() => fetchAndRenderState(), 3000);
+			}
 
-				// === Обработчики ===
+			// === Обработчики ===
 
-				$('btn-clue').onclick = giveClue;
-				$('clue-word').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
-				$('clue-number').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
+			$('btn-clue').onclick = giveClue;
+			$('clue-word').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
+			$('clue-number').addEventListener('keydown', e => { if (e.key === 'Enter') giveClue(); });
 
-				$('btn-end-turn').onclick = () => {
-				window.Sounds?.play('vote');
-				toggleEndTurnVote();
-				};
+			$('btn-end-turn').onclick = () => {
+			window.Sounds?.play('vote');
+			toggleEndTurnVote();
+			};
 
-				async function goToLobby() {
-				$('error').textContent = '';
-				try {
-				await state.connection.invoke('ReturnToLobby', roomId, playerId);
-				} catch (e) {
-				window.location.href = lobbyUrl;
-				}
-				}
+			async function goToLobby() {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('ReturnToLobby', roomId, playerId);
+			} catch (e) {
+			window.location.href = lobbyUrl;
+			}
+			}
 
-				$('btn-exit').onclick = goToLobby;
-				$('btn-go-lobby').onclick = goToLobby;
+			$('btn-exit').onclick = goToLobby;
+			$('btn-go-lobby').onclick = goToLobby;
 
-				async function leaveRoomCompletely() {
-				$('error').textContent = '';
-				try {
-				await state.connection.invoke('LeaveRoom', roomId, playerId);
-				} catch (e) {
-				console.error('[leave room]', e);
-				}
-				try { await state.connection.stop(); } catch {}
-				window.location.href = '/lobby.html';
-				}
+			async function leaveRoomCompletely() {
+			$('error').textContent = '';
+			try {
+			await state.connection.invoke('LeaveRoom', roomId, playerId);
+			} catch (e) {
+			console.error('[leave room]', e);
+			}
+			try { await state.connection.stop(); } catch {}
+			window.location.href = '/lobby.html';
+			}
 
-				$('btn-leave-room').onclick = leaveRoomCompletely;
+			$('btn-leave-room').onclick = leaveRoomCompletely;
 
-				start().catch(err => {
-				$('status').textContent = 'Ошибка';
-				$('error').textContent = err.message;
+			start().catch(err => {
+			$('status').textContent = 'Ошибка';
+			$('error').textContent = err.message;
 
-				if (/комната|игрок/i.test(err.message)) {
-				setTimeout(() => {
-				window.location.href = '/lobby.html';
-				}, 2500);
-				}
-				});
-			</script>
-</body>
+			if (/комната|игрок/i.test(err.message)) {
+			setTimeout(() => {
+			window.location.href = '/lobby.html';
+			}, 2500);
+			}
+			});
+		</script>
+	</body>
 </html>
